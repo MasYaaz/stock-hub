@@ -10,6 +10,7 @@ class StockDataModel extends Model
     protected $primaryKey = 'id';
 
     // Daftarkan semua kolom baru agar bisa di-insert/update
+    // Pastikan per, roe, der, dan dividend sudah masuk di sini
     protected $allowedFields = [
         'emiten_id',
         'last_price',
@@ -18,20 +19,23 @@ class StockDataModel extends Model
         'day_low',
         'market_cap',
         'pbv',
-        'dividend_yield',
+        'per',            // Tambahan
+        'roe',            // Tambahan (untuk current data)
+        'der',            // Tambahan (untuk current data)
+        'dividend',       // Tambahan (Nominal)
+        'dividend_yield', // Persentase
         'beta',
         'employees',
         'price_updated_at',
         'fundamental_updated_at'
     ];
 
-    // Dates - Aktifkan otomatisasi timestamp bawaan CI4 untuk audit record
+    // Aktifkan useTimestamps jika kamu punya kolom created_at/updated_at di tabel
     protected $useTimestamps = false;
     protected $dateFormat = 'datetime';
 
     /**
      * Mengambil ringkasan stok untuk halaman dashboard utama.
-     * Kita urutkan berdasarkan harga yang paling baru di-update.
      */
     public function getStockSummary()
     {

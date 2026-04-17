@@ -53,11 +53,35 @@ class CreateStockDataTable extends Migration
                 'null' => true,
                 'comment' => 'Price to Book Value Ratio',
             ],
+            'per' => [
+                'type' => 'DECIMAL',
+                'constraint' => '5,2',
+                'null' => true,
+                'comment' => 'Price to Book Value Ratio',
+            ],
+            'roe' => [
+                'type' => 'DECIMAL',
+                'constraint' => '5,2',
+                'null' => true,
+                'comment' => 'Return on Equity in Percentage',
+            ],
+            'der' => [
+                'type' => 'DECIMAL',
+                'constraint' => '5,2',
+                'null' => true,
+                'comment' => 'Debt to Equity Ratio',
+            ],
             'dividend_yield' => [
                 'type' => 'DECIMAL',
                 'constraint' => '5,2',
                 'null' => true,
                 'comment' => 'Dividend Yield in Percentage',
+            ],
+            'dividend' => [
+                'type' => 'DECIMAL',
+                'constraint' => '15,2',
+                'null' => true,
+                'comment' => 'Dividend per share in nominal value (IDR)',
             ],
             'beta' => [
                 'type' => 'DECIMAL',

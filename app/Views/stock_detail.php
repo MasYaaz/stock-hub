@@ -23,8 +23,8 @@ if ($day >= 1 && $day <= 5) {
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
 <style>
+    /* ... (Semua style CSS kamu tetap sama, tidak saya ubah sedikitpun) ... */
     .detail-card-header {
         background: rgba(30, 41, 59, 0.4);
         backdrop-filter: blur(12px);
@@ -35,7 +35,6 @@ if ($day >= 1 && $day <= 5) {
         overflow: hidden;
     }
 
-    /* Efek cahaya halus di pojok kartu */
     .detail-card-header::after {
         content: "";
         position: absolute;
@@ -151,6 +150,25 @@ if ($day >= 1 && $day <= 5) {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
+
+    /* Penambahan style tabel history agar match dengan tema */
+    .history-table {
+        font-size: 0.7rem;
+        color: #cbd5e1;
+    }
+
+    .history-table th {
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 8px;
+    }
+
+    .history-table td {
+        padding: 8px;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+    }
 </style>
 
 <div class="detail-card-header p-4 mb-4 shadow-2xl">
@@ -166,7 +184,6 @@ if ($day >= 1 && $day <= 5) {
                     </div>
                 <?php endif; ?>
             </div>
-
             <div>
                 <div class="d-flex align-items-center gap-2 mb-1">
                     <h1 class="h3 fw-bold text-white mb-0" style="letter-spacing: -0.5px;"><?= $stock['code'] ?></h1>
@@ -175,25 +192,17 @@ if ($day >= 1 && $day <= 5) {
                 <h5 class="text-slate-400 small fw-medium mb-0 opacity-80"><?= $stock['name'] ?></h5>
             </div>
         </div>
-
         <div class="col-md-5 text-md-end mt-3 mt-md-0">
             <div class="mb-2">
                 <?php if ($is_open): ?>
-                    <div class="market-status-badge status-open">
-                        <span class="pulse-dot"></span>
-                        Market Open
-                    </div>
+                    <div class="market-status-badge status-open"><span class="pulse-dot"></span> Market Open </div>
                 <?php else: ?>
-                    <div class="market-status-badge status-closed">
-                        <i data-lucide="lock" size="10"></i>
-                        Market Closed
-                    </div>
+                    <div class="market-status-badge status-closed"><i data-lucide="lock" size="10"></i> Market Closed </div>
                 <?php endif; ?>
             </div>
             <div class="text-slate-500 d-flex align-items-center justify-content-md-end gap-1"
                 style="font-size: 0.65rem;">
-                <i data-lucide="info" size="12"></i>
-                Real-time data from IDX via Yahoo & FMP
+                <i data-lucide="info" size="12"></i> Real-time data from IDX via Yahoo & FMP
             </div>
         </div>
     </div>
@@ -223,8 +232,32 @@ if ($day >= 1 && $day <= 5) {
                 </div>
                 <div class="col-6">
                     <div class="stat-item">
-                        <div class="info-label"><i data-lucide="zap" size="12"></i> Beta</div>
-                        <div class="info-value"><?= number_format($stock['beta'] ?? 0, 2) ?></div>
+                        <div class="info-label"><i data-lucide="trending-up" size="12"></i> PER Ratio</div>
+                        <div class="info-value"><?= number_format($stock['per'] ?? 0, 2) ?>x</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="info-label"><i data-lucide="layers" size="12"></i> PBV Ratio</div>
+                        <div class="info-value"><?= number_format($stock['pbv'] ?? 0, 2) ?>x</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="info-label"><i data-lucide="activity" size="12"></i> ROE</div>
+                        <div class="info-value text-success"><?= number_format($stock['roe'] ?? 0, 2) ?>%</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="info-label"><i data-lucide="shield-alert" size="12"></i> DER</div>
+                        <div class="info-value"><?= number_format($stock['der'] ?? 0, 2) ?>x</div>
+                    </div>
+                </div>
+                <div class="col-6">
+                    <div class="stat-item">
+                        <div class="info-label"><i data-lucide="banknote" size="12"></i> Dividend</div>
+                        <div class="info-value">Rp <?= number_format($stock['dividend'] ?? 0, 0, ',', '.') ?></div>
                     </div>
                 </div>
                 <div class="col-6">
@@ -236,24 +269,8 @@ if ($day >= 1 && $day <= 5) {
                 </div>
                 <div class="col-6">
                     <div class="stat-item">
-                        <div class="info-label"><i data-lucide="layers" size="12"></i> PBV Ratio</div>
-                        <div class="info-value"><?= number_format($stock['pbv'] ?? 0, 2) ?>x</div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="stat-item">
-                        <div class="info-label"><i data-lucide="users" size="12"></i> Employees</div>
-                        <div class="info-value">
-                            <?= isset($stock['employees']) ? number_format($stock['employees']) : '-' ?>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-6">
-                    <div class="stat-item">
-                        <div class="info-label"><i data-lucide="clock" size="12"></i> Sync Time</div>
-                        <div class="info-value" style="font-size: 0.7rem; color: #94a3b8;">
-                            <?= date('d M H:i', strtotime($stock['price_updated_at'])) ?>
-                        </div>
+                        <div class="info-label"><i data-lucide="zap" size="12"></i> Beta</div>
+                        <div class="info-value"><?= number_format($stock['beta'] ?? 0, 2) ?></div>
                     </div>
                 </div>
             </div>
@@ -261,9 +278,35 @@ if ($day >= 1 && $day <= 5) {
             <hr class="border-secondary opacity-20 my-4">
 
             <div class="info-label"><i data-lucide="info" size="12"></i> Business Description</div>
-            <p class="text-secondary mt-2" style="font-size: 0.75rem; text-align: justify; line-height: 1.6;">
+            <p class="text-secondary mt-2 mb-4" style="font-size: 0.75rem; text-align: justify; line-height: 1.6;">
                 <?= $stock['description'] ?? 'Description not available in database.' ?>
             </p>
+
+            <?php if (!empty($histories)): ?>
+                <div class="info-label"><i data-lucide="history" size="12"></i> Historical Performance (FY)</div>
+                <div class="table-responsive">
+                    <table class="w-100 history-table">
+                        <thead>
+                            <tr>
+                                <th class="text-start">Year</th>
+                                <th class="text-end">Revenue</th>
+                                <th class="text-end">Net Profit</th>
+                                <th class="text-end">ROE</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($histories as $h): ?>
+                                <tr>
+                                    <td class="text-start fw-bold"><?= $h['year'] ?></td>
+                                    <td class="text-end"><?= $h['revenue'] ?> T</td>
+                                    <td class="text-end"><?= $h['net_profit'] ?> T</td>
+                                    <td class="text-end"><?= number_format($h['roe'], 1) ?>%</td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -299,21 +342,16 @@ if ($day >= 1 && $day <= 5) {
 </div>
 
 <script>
-    // Initialize Lucide
     lucide.createIcons();
-
     async function triggerAI(code) {
         const aiBox = document.getElementById('aiContent');
         const btn = event.currentTarget;
-
         btn.disabled = true;
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AI Thinking...';
         aiBox.style.opacity = '0.4';
-
         try {
             const response = await fetch(`<?= base_url('stock/analyze-ai') ?>/${code}`);
             const data = await response.json();
-
             if (data.status === 'success') {
                 aiBox.innerHTML = marked.parse(data.analysis);
                 aiBox.style.opacity = '1';

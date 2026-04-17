@@ -22,7 +22,7 @@ class StockFetcher
     /**
      * Mengambil data saham secara bertahap dari Yahoo Finance
      */
-    public function fetchStepByStep(int $limit = 25)
+    public function fetchStepByStep(int $limit = 230)
     {
         // 1. Ambil antrian berdasarkan updated_at paling lama (prioritas data basi)
         $queue = $this->stockDataModel->orderBy('price_updated_at', 'ASC')->limit($limit)->findAll();

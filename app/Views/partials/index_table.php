@@ -132,7 +132,8 @@
                                 <div>
                                     <div class="badge-code"><?= $s['code'] ?></div>
                                     <div class="text-slate-500 mt-1" style="font-size: 0.65rem; font-weight: 500;">
-                                        <?= $s['sector'] ?></div>
+                                        <?= $s['sector'] ?>
+                                    </div>
                                 </div>
                             </div>
                         </td>
@@ -164,7 +165,7 @@
                         <td class="text-center pe-4">
                             <a href="<?= base_url('stock/detail/' . $s['code']) ?>"
                                 class="btn btn-sm btn-outline-info rounded-pill px-3 fw-bold" style="font-size: 0.75rem;">
-                                Analisis
+                                Detail
                             </a>
                         </td>
                     </tr>
