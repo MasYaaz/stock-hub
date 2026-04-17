@@ -198,20 +198,34 @@ class StockController extends BaseController
                     // 4. Update Data Sejarah (Tabel stock_histories)
                     if (isset($scrapedData['history']) && is_array($scrapedData['history'])) {
                         foreach ($scrapedData['history'] as $year => $values) {
-                            // Simpan jika belum ada di database untuk tahun tersebut
-                            if (!$historyModel->isExist($stock['emiten_id'], $year, 'FY')) {
-                                $historyModel->insert([
-                                    'emiten_id' => $stock['emiten_id'],
-                                    'year' => $year,
-                                    'period' => 'FY',
-                                    'revenue' => (string) ($values['revenue'] ?? '0'), // Disimpan sebagai String
-                                    'net_profit' => (string) ($values['net_profit'] ?? '0'), // Disimpan sebagai String
-                                    'eps' => $values['eps'] ?? 0,
-                                    'roe' => $values['roe'] ?? 0,
-                                    'der' => $values['der'] ?? 0,
-                                    'pbv' => $values['pbv'] ?? 0,
-                                    'per' => $values['per'] ?? 0,
-                                ]);
+
+                            // Data yang akan diproses
+                            $historyData = [
+                                'emiten_id' => $stock['emiten_id'],
+                                'year' => $year,
+                                'period' => 'FY',
+                                'revenue' => (string) ($values['revenue'] ?? '0'),
+                                'net_profit' => (string) ($values['net_profit'] ?? '0'),
+                                'eps' => $values['eps'] ?? 0,
+                                'roe' => $values['roe'] ?? 0,
+                                'der' => $values['der'] ?? 0,
+                                'pbv' => $values['pbv'] ?? 0,
+                                'per' => $values['per'] ?? 0,
+                            ];
+
+                            // Cek apakah data untuk emiten dan tahun tersebut sudah ada
+                            $existing = $historyModel->where([
+                                'emiten_id' => $stock['emiten_id'],
+                                'year' => $year,
+                                'period' => 'FY'
+                            ])->first();
+
+                            if ($existing) {
+                                // Jika ada, TIMPA/UPDATE data lama
+                                $historyModel->update($existing['id'], $historyData);
+                            } else {
+                                // Jika belum ada, baru INSERT
+                                $historyModel->insert($historyData);
                             }
                         }
                     }
@@ -319,8 +333,8 @@ class StockController extends BaseController
                     $rowHtml = $matches[1];
 
                     // Tangkap semua angka/string data di dalam <td>
-                    preg_match_all('/<td[^>]*>\s*([\d,.-]+)/i', $rowHtml, $values);
-                    $dataArr = $values[1] ?? [];
+                    preg_match_all('/<td[^>]*>\s*((?:(?!<\/td>).)*)/i', $rowHtml, $values);
+                    $dataArr = array_map('trim', $values[1] ?? []);
 
                     if (count($dataArr) >= 4) {
                         // Logic pemisahan: String untuk lapkeu, Float untuk rasio

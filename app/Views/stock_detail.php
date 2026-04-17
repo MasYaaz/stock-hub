@@ -298,8 +298,8 @@ if ($day >= 1 && $day <= 5) {
                             <?php foreach ($histories as $h): ?>
                                 <tr>
                                     <td class="text-start fw-bold"><?= $h['year'] ?></td>
-                                    <td class="text-end"><?= $h['revenue'] ?> T</td>
-                                    <td class="text-end"><?= $h['net_profit'] ?> T</td>
+                                    <td class="text-end"><?= $h['revenue'] ?></td>
+                                    <td class="text-end"><?= $h['net_profit'] ?></td>
                                     <td class="text-end"><?= number_format($h['roe'], 1) ?>%</td>
                                 </tr>
                             <?php endforeach; ?>
