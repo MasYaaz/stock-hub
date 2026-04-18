@@ -1,69 +1,148 @@
-# CodeIgniter 4 Application Starter
+# BedahSaham
 
-## What is CodeIgniter?
+Aplikasi web untuk menganalisis saham Indonesia dengan data real-time dari API Yahoo Finance dan fundamental Modelling Prep.
 
-CodeIgniter is a PHP full-stack web framework that is light, fast, flexible and secure.
-More information can be found at the [official site](https://codeigniter.com).
+## Deskripsi
 
-This repository holds a composer-installable app starter.
-It has been built from the
-[development repository](https://github.com/codeigniter4/CodeIgniter4).
+Bedah Saham adalah aplikasi berbasis web yang memungkinkan pengguna untuk:
 
-More information about the plans for version 4 can be found in [CodeIgniter 4](https://forum.codeigniter.com/forumdisplay.php?fid=28) on the forums.
+- Melihat data real-time saham Indonesia
+- Menganalisis tren harga saham
+- Mendapatkan informasi fundamental perusahaan
+- Memantau kinerja saham dalam periode tertentu
+- Menganalisis saham menggunakan AI (kecerdasan buatan)
 
-You can read the [user guide](https://codeigniter.com/user_guide/)
-corresponding to the latest version of the framework.
+Aplikasi ini dibangun menggunakan framework CodeIgniter 4 dengan PHP 8.2+ dan menggunakan database MySQL.
 
-## Installation & updates
+## Fitur Utama
 
-`composer create-project codeigniter4/appstarter` then `composer update` whenever
-there is a new release of the framework.
+### 1. Market Explorer (Real-Time Table)
 
-When updating, check the release notes to see if there are any changes you might need to apply
-to your `app` folder. The affected files can be copied or merged from
-`vendor/codeigniter4/framework/app`.
+- Menampilkan daftar emiten pilihan dengan notasi papan bursa (Utama, Pengembangan, Akselerasi).
+- Pembaruan harga otomatis tanpa penyegaran halaman menggunakan Live UI Sync.
+- Filter pencarian cepat berdasarkan kode emiten atau nama perusahaan.
+- Visualisasi sektor menggunakan ikon tematik untuk kemudahan navigasi.
 
-## Setup
+### 2. Advanced Charting System
 
-Copy `env` to `.env` and tailor for your app, specifically the baseURL
-and any database settings.
+- Grafik interaktif bertenaga ApexCharts.js.
+- Mendukung multi-range: 1D (Intraday), 1W, 1M, 6M, hingga 1Y.
+- Logika Smart-Holiday: Grafik tetap menampilkan data hari bursa terakhir meskipun diakses saat hari libur atau akhir pekan.
+- Sinkronisasi data antara titik dasar grafik dengan rekapan harga di dashboard.
 
-## Important Change with index.php
+### 3. AI Stock Analyst (DeepSeek Integration)
 
-`index.php` is no longer in the root of the project! It has been moved inside the *public* folder,
-for better security and separation of components.
+- Analisis fundamental dan teknikal otomatis menggunakan model DeepSeek V3 melalui Ollama.
+- Menghasilkan ringkasan kondisi perusahaan, interpretasi rasio keuangan (ROE, PBV, DER), dan rekomendasi investasi (Buy/Hold/Sell) yang terstruktur.
 
-This means that you should configure your web server to "point" to your project's *public* folder, and
-not to the project root. A better practice would be to configure a virtual host to point there. A poor practice would be to point your web server to the project root and expect to enter *public/...*, as the rest of your logic and the
-framework are exposed.
+### 4. Robust Background Sync
 
-**Please** read the user guide for a better explanation of how CI4 works!
+- Perintah CLI `php spark stock:sync` untuk memperbarui harga saham secara berkala.
+- Menggunakan strategi Human-Like Requesting (Randomized Jitter dan User-Agent Rotation) untuk menghindari pembatasan frekuensi akses (rate limit).
 
-## Repository Management
+## Instalasi
 
-We use GitHub issues, in our main repository, to track **BUGS** and to track approved **DEVELOPMENT** work packages.
-We use our [forum](http://forum.codeigniter.com) to provide SUPPORT and to discuss
-FEATURE REQUESTS.
+### Prasyarat
 
-This repository is a "distribution" one, built by our release preparation script.
-Problems with it can be raised on our forum, or as issues in the main repository.
+- PHP 8.2 atau lebih tinggi
+- Composer
+- MariaDB / MySQL
+- Ollama (Sudah terinstal di mesin lokal untuk fitur AI)
 
-## Server Requirements
+### Langkah Instalasi
 
-PHP version 8.2 or higher is required, with the following extensions installed:
+1. Clone repository ini:
 
-- [intl](http://php.net/manual/en/intl.requirements.php)
-- [mbstring](http://php.net/manual/en/mbstring.installation.php)
+   ```bash
+   git clone https://github.com/your-username/bedah-saham.git
+   cd bedah-saham
+   ```
 
-> [!WARNING]
-> - The end of life date for PHP 7.4 was November 28, 2022.
-> - The end of life date for PHP 8.0 was November 26, 2023.
-> - The end of life date for PHP 8.1 was December 31, 2025.
-> - If you are still using below PHP 8.2, you should upgrade immediately.
-> - The end of life date for PHP 8.2 will be December 31, 2026.
+2. Install dependensi menggunakan Composer:
 
-Additionally, make sure that the following extensions are enabled in your PHP:
+   ```bash
+   composer install
+   ```
 
-- json (enabled by default - don't turn it off)
-- [mysqlnd](http://php.net/manual/en/mysqlnd.install.php) if you plan to use MySQL
-- [libcurl](http://php.net/manual/en/curl.requirements.php) if you plan to use the HTTP\CURLRequest library
+3. Salin file konfigurasi:
+
+   ```bash
+   cp env .env
+   ```
+
+4. Konfigurasi database di file `.env`:
+
+   ```env
+   database.default.hostname = localhost
+   database.default.database = bedah_saham
+   database.default.username = root
+   database.default.password =
+   database.default.DBDriver = MySQLi
+   FMP_API_KEY = 'your_api_key_here'
+   FMP_BASE_URL = 'https://financialmodelingprep.com/stable/'
+
+   ```
+
+5. Buat database dan jalankan migrasi:
+
+   ```bash
+   php spark migrate
+   ```
+
+6. Jalankan server development:
+
+   ```bash
+   php spark serve
+   ```
+
+7. Akses aplikasi di browser:
+   ```
+   http://localhost:8080
+   ```
+
+## Penggunaan
+
+### Menjalankan Sinkronisasi Data
+
+Untuk menjalankan sinkronisasi data saham secara berkala:
+
+```bash
+php spark stock:sync
+```
+
+Perintah ini akan menjalankan proses pengambilan data saham secara otomatis dan terus-menerus.
+
+### Struktur Database
+
+Aplikasi ini menggunakan 3 tabel utama:
+
+1. **emiten** - Menyimpan informasi dasar emiten saham
+2. **stock_data** - Menyimpan data harga saham real-time
+3. **stock_histories** - Menyimpan data historis kinerja perusahaan
+
+## Teknologi yang Digunakan
+
+- **Backend**: PHP 8.2+, CodeIgniter 4 Framework
+- **Frontend**: HTML5, CSS3, JavaScript, Bootstrap 5
+- **Database**: MySQL
+- **API**: Yahoo Finance API, Financial Modeling Prep API
+- **Chart**: ApexCharts.js
+- **LLM**: Ollama dengan model : Deepseek v3.1:671b-cloud
+
+## Kontribusi
+
+Kontribusi sangat diallowed untuk pengembangan aplikasi ini. Untuk berkontribusi:
+
+1. Fork repository ini
+2. Buat branch fitur baru (`git checkout -b feature/NamaFitur`)
+3. Commit perubahan (`git commit -am 'Tambahkan fitur baru'`)
+4. Push ke branch (`git push origin feature/NamaFitur`)
+5. Buat Pull Request
+
+## Lisensi
+
+Proyek ini dilisensikan di bawah MIT License - lihat file [LICENSE](LICENSE) untuk detail lebih lanjut.
+
+## Kontak
+
+Jika Anda memiliki pertanyaan atau saran, silakan hubungi kami di [diyaz.hal22@gmail.com](mailto:diyaz.hal22@gmail.com) atau buat issue di repository ini.

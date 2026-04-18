@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?= $title ?? 'Stock-Hub' ?> | Aggregator Saham</title>
+    <title><?= $title ?? 'BedahSaham' ?> | Stock Analyzer</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -32,13 +32,11 @@
             font-family: 'Inter', sans-serif;
             display: flex;
             flex-direction: column;
-            /* Tambahkan ini agar konten tidak tertutup navbar fixed */
             padding-top: 80px;
             background-image: radial-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 0);
             background-size: 24px 24px;
         }
 
-        /* Tambahan transisi halus saat scroll */
         .navbar {
             background-color: rgba(15, 23, 42, 0.6) !important;
             backdrop-filter: blur(12px) saturate(180%);
@@ -47,7 +45,6 @@
             padding: 0.8rem 0;
             transition: all 0.3s ease;
             z-index: 1030;
-            /* Memastikan navbar di atas elemen lain */
         }
 
         .navbar-brand {
@@ -77,22 +74,11 @@
             flex: 1 0 auto;
         }
 
-        /* Footer Modern */
         footer {
             background: rgba(15, 23, 42, 0.9);
             border-top: 1px solid var(--border-dark);
-            padding: 2rem 0;
+            padding: 2.5rem 0;
             flex-shrink: 0;
-        }
-
-        .footer-badge {
-            background: rgba(56, 189, 248, 0.05);
-            color: var(--accent-info);
-            border: 1px solid rgba(56, 189, 248, 0.2);
-            padding: 6px 14px;
-            border-radius: 100px;
-            font-size: 0.75rem;
-            font-weight: 600;
         }
 
         /* Scrollbar Styling */
@@ -119,10 +105,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand" href="<?= base_url('stock') ?>">
-                <div class="bg-info bg-opacity-10 p-2 rounded-3">
-                    <i data-lucide="zap" fill="currentColor"></i>
-                </div>
-                STOCK-HUB
+                <i data-lucide="microscope"></i> BedahSaham
             </a>
 
             <div class="ms-auto d-flex align-items-center gap-3">
@@ -133,10 +116,6 @@
                         <span>Dashboard</span>
                     </a>
                 <?php endif; ?>
-
-                <div class="text-slate d-none d-md-block" style="font-size: 0.75rem;">
-                    <i data-lucide="map-pin" size="12" class="me-1"></i> Surabaya, ID
-                </div>
             </div>
         </div>
     </nav>
@@ -150,31 +129,35 @@
             <div class="row align-items-center">
                 <div class="col-md-6 text-center text-md-start">
                     <div class="d-flex align-items-center gap-2 justify-content-center justify-content-md-start mb-2">
-                        <span class="fw-bold text-white">Stock-Hub</span>
+                        <span class="fw-bold text-white">BedahSaham</span>
                         <span class="text-slate opacity-50">|</span>
-                        <span class="text-slate small">Aggregator Web for stock analyzing</span>
+                        <span class="text-slate small">Advanced Stock Analysis Aggregator</span>
                     </div>
                     <p class="text-slate mb-0" style="font-size: 0.75rem;">
-                        © 2026. Built for high-performance stock analysis.
+                        © 2026 BedahSaham. Analisis data bursa secara presisi dan mendalam.
                     </p>
                 </div>
-
+                <div class="col-md-6 text-center text-md-end mt-3 mt-md-0">
+                    <span class="text-slate" style="font-size: 0.75rem;">
+                        Data source provided by Yahoo Finance & Financial Modelling Prep API
+                    </span>
+                </div>
             </div>
         </div>
     </footer>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Initialize Lucide Icons globally
         lucide.createIcons();
 
-        // Navbar Scroll Effect
         window.addEventListener('scroll', function () {
+            const nav = document.querySelector('.navbar');
             if (window.scrollY > 50) {
-                document.querySelector('.navbar').style.padding = '0.5rem 0';
-                document.querySelector('.navbar').style.backgroundColor = 'rgba(15, 23, 42, 0.9) !important';
+                nav.style.padding = '0.5rem 0';
+                nav.style.backgroundColor = 'rgba(15, 23, 42, 0.95) !important';
             } else {
-                document.querySelector('.navbar').style.padding = '0.8rem 0';
+                nav.style.padding = '0.8rem 0';
+                nav.style.backgroundColor = 'rgba(15, 23, 42, 0.6) !important';
             }
         });
     </script>

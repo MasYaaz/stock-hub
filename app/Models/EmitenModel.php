@@ -17,6 +17,7 @@ class EmitenModel extends Model
         'code',
         'name',
         'sector',
+        'notation',
         'description',
         'image',
         'ai_analysis',

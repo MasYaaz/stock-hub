@@ -1,4 +1,5 @@
 <style>
+    /* Card & Table Styling */
     .market-card {
         background: rgba(30, 41, 59, 0.4);
         backdrop-filter: blur(12px);
@@ -21,21 +22,20 @@
         background: rgba(56, 189, 248, 0.04) !important;
     }
 
-    .badge-code {
-        background: rgba(56, 189, 248, 0.1);
-        color: #38bdf8;
-        border: 1px solid rgba(56, 189, 248, 0.2);
-        padding: 0.4rem 0.7rem;
-        border-radius: 10px;
-        font-weight: 800;
-        font-size: 0.85rem;
-        letter-spacing: 0.5px;
+    /* Area Kolom Emiten (Revised) */
+    .logo-container {
+        flex-shrink: 0;
+        width: 42px;
+        height: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
 
     .company-logo-sm {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
         object-fit: contain;
         background: white;
         padding: 4px;
@@ -43,9 +43,9 @@
     }
 
     .logo-placeholder {
-        width: 36px;
-        height: 36px;
-        border-radius: 10px;
+        width: 100%;
+        height: 100%;
+        border-radius: 12px;
         background: #1e293b;
         display: flex;
         align-items: center;
@@ -54,7 +54,70 @@
         border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
-    /* Search Bar Styling */
+    .emiten-info-wrapper {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    .emiten-top-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .badge-code {
+        background: rgba(56, 189, 248, 0.12);
+        color: #38bdf8;
+        border: 1px solid rgba(56, 189, 248, 0.2);
+        padding: 2px 8px;
+        border-radius: 6px;
+        font-weight: 800;
+        font-size: 0.75rem;
+        font-family: 'JetBrains Mono', monospace;
+        /* Lebih pro */
+    }
+
+    .badge-notation {
+        font-size: 0.6rem;
+        text-transform: uppercase;
+        padding: 2px 6px;
+        border-radius: 6px;
+        font-weight: 700;
+        background: rgba(255, 255, 255, 0.05);
+        color: #94a3b8;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .notation-utama {
+        color: #10b981;
+        border-color: rgba(16, 185, 129, 0.3);
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .notation-pengembangan {
+        color: #f59e0b;
+        border-color: rgba(245, 158, 11, 0.3);
+        background: rgba(245, 158, 11, 0.1);
+    }
+
+    .notation-akselerasi {
+        color: #38bdf8;
+        border-color: rgba(56, 189, 248, 0.3);
+        background: rgba(56, 189, 248, 0.1);
+    }
+
+    .sector-pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #64748b;
+        font-size: 0.65rem;
+        font-weight: 500;
+    }
+
+    /* Search Bar */
     .search-wrapper {
         background: rgba(15, 23, 42, 0.6);
         border: 1px solid rgba(255, 255, 255, 0.1);
@@ -66,7 +129,6 @@
     .search-wrapper:focus-within {
         border-color: #38bdf8;
         box-shadow: 0 0 20px rgba(56, 189, 248, 0.15);
-        background: rgba(15, 23, 42, 0.8);
     }
 
     .search-input {
@@ -100,7 +162,7 @@
 </div>
 
 <div class="market-card shadow-2xl overflow-hidden">
-    <div class="table-responsive" style="max-height: 70vh;">
+    <div class="table-responsive" style="max-height: 75vh;">
         <table class="table table-dark table-hover align-middle mb-0" id="stockTable">
             <thead class="sticky-top" style="z-index: 10; background: #111827;">
                 <tr class="text-slate-500"
@@ -108,7 +170,7 @@
                     <th class="ps-4 py-4">EMITEN</th>
                     <th class="py-4">PERUSAHAAN</th>
                     <th class="py-4 text-end">HARGA</th>
-                    <th class="py-4 text-end">PERUBAHAN</th>
+                    <th class="py-4 text-end">PERUBAHAN (DAILY)</th>
                     <th class="py-4 text-center">RANGE (H/L)</th>
                     <th class="py-4 text-center pe-4">OPSI</th>
                 </tr>
@@ -118,25 +180,67 @@
                     <?php
                     $change = $s['last_price'] - $s['previous_close'];
                     $percent = ($s['previous_close'] > 0) ? ($change / $s['previous_close']) * 100 : 0;
+
+                    // Logic Ikon Sektor
+                    $sectorIcon = 'component';
+                    $sectorLower = strtolower($s['sector']);
+                    if (strpos($sectorLower, 'health') !== false)
+                        $sectorIcon = 'heart-pulse';
+                    elseif (strpos($sectorLower, 'finance') !== false)
+                        $sectorIcon = 'landmark';
+                    elseif (strpos($sectorLower, 'energy') !== false)
+                        $sectorIcon = 'zap';
+                    elseif (strpos($sectorLower, 'tech') !== false)
+                        $sectorIcon = 'cpu';
+                    elseif (strpos($sectorLower, 'consumer') !== false)
+                        $sectorIcon = 'shopping-bag';
+                    elseif (strpos($sectorLower, 'basic') !== false)
+                        $sectorIcon = 'shovels';
+                    elseif (strpos($sectorLower, 'transport') !== false)
+                        $sectorIcon = 'truck';
+                    elseif (strpos($sectorLower, 'infrastruct') !== false)
+                        $sectorIcon = 'hard-hat';
+                    elseif (strpos($sectorLower, 'prop') !== false)
+                        $sectorIcon = 'home';
+
+                    // Logic Notasi
+                    $notationClass = '';
+                    $notasi = strtolower($s['notation'] ?? '');
+                    if ($notasi == 'utama')
+                        $notationClass = 'notation-utama';
+                    elseif ($notasi == 'pengembangan')
+                        $notationClass = 'notation-pengembangan';
+                    elseif ($notasi == 'akselerasi')
+                        $notationClass = 'notation-akselerasi';
                     ?>
                     <tr id="row-<?= $s['code'] ?>" class="stock-row">
                         <td class="ps-4">
                             <div class="d-flex align-items-center gap-3">
-                                <?php if (!empty($s['image'])): ?>
-                                    <img src="<?= $s['image'] ?>" class="company-logo-sm" alt="logo" loading="lazy">
-                                <?php else: ?>
-                                    <div class="logo-placeholder">
-                                        <i data-lucide="building-2" size="16"></i>
+                                <div class="logo-container">
+                                    <?php if (!empty($s['image'])): ?>
+                                        <img src="<?= $s['image'] ?>" class="company-logo-sm" alt="logo" loading="lazy">
+                                    <?php else: ?>
+                                        <div class="logo-placeholder">
+                                            <i data-lucide="building-2" size="18"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                </div>
+
+                                <div class="emiten-info-wrapper">
+                                    <div class="emiten-top-row">
+                                        <span class="badge-code"><?= $s['code'] ?></span>
+                                        <?php if (!empty($s['notation'])): ?>
+                                            <span class="badge-notation <?= $notationClass ?>"><?= $s['notation'] ?></span>
+                                        <?php endif; ?>
                                     </div>
-                                <?php endif; ?>
-                                <div>
-                                    <div class="badge-code"><?= $s['code'] ?></div>
-                                    <div class="text-slate-500 mt-1" style="font-size: 0.65rem; font-weight: 500;">
-                                        <?= $s['sector'] ?>
+                                    <div class="sector-pill mt-1">
+                                        <i data-lucide="<?= $sectorIcon ?>" size="12" style="stroke-width: 2.5px;"></i>
+                                        <span><?= $s['sector'] ?></span>
                                     </div>
                                 </div>
                             </div>
                         </td>
+
                         <td>
                             <div class="text-truncate text-light fw-medium stock-name-text"
                                 style="max-width: 220px; font-size: 0.9rem;">
@@ -176,38 +280,28 @@
 </div>
 
 <script>
-    // Inisialisasi Lucide
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof lucide !== 'undefined') lucide.createIcons();
+    });
 
-    // Live Search Logic
     document.getElementById('stockSearch').addEventListener('input', function () {
         const filter = this.value.toUpperCase().trim();
         const rows = document.querySelectorAll('#stockTableBody .stock-row');
-
         rows.forEach(row => {
             const codeText = row.querySelector('.badge-code').textContent.toUpperCase();
             const nameText = row.querySelector('.stock-name-text').textContent.toUpperCase();
-
-            if (codeText.includes(filter) || nameText.includes(filter)) {
-                row.style.display = "";
-                row.style.opacity = "1";
-            } else {
-                row.style.display = "none";
-            }
+            row.style.display = (codeText.includes(filter) || nameText.includes(filter)) ? "" : "none";
         });
     });
 
-    // Real-time UI Update (dari Dashboard interval)
     window.updateTableUI = function (data) {
         data.forEach(stock => {
             const row = document.getElementById(`row-${stock.code}`);
             if (row) {
                 const priceEl = row.querySelector('.last-price');
                 const newPrice = new Intl.NumberFormat('id-ID').format(stock.last_price);
-
                 if (priceEl.innerText !== newPrice) {
                     priceEl.innerText = newPrice;
-                    // Flash effect
                     priceEl.style.color = '#38bdf8';
                     priceEl.style.transition = 'color 0.3s';
                     setTimeout(() => priceEl.style.color = 'white', 2000);

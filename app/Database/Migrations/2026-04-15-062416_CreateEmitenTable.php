@@ -28,6 +28,11 @@ class CreateEmitenTable extends Migration
                 'constraint' => '50',
                 'null' => true,
             ],
+            'notation' => [
+                'type' => 'VARCHAR',
+                'constraint' => '50',
+                'null' => true,
+            ],
             'description' => [
                 'type' => 'TEXT',
                 'null' => true,

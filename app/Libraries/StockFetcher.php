@@ -22,78 +22,98 @@ class StockFetcher
     /**
      * Mengambil data saham secara bertahap dari Yahoo Finance
      */
-    public function fetchStepByStep(int $limit = 230)
+    public function fetchStepByStep(int $limit = 50)
     {
-        // 1. Ambil antrian berdasarkan updated_at paling lama (prioritas data basi)
-        $queue = $this->stockDataModel->orderBy('price_updated_at', 'ASC')->limit($limit)->findAll();
+        // Mencegah script timeout karena adanya jeda usleep
+        set_time_limit(0);
 
-        if (empty($queue)) {
-            return "Antrian kosong. Pastikan data emiten sudah diinisialisasi.";
-        }
+        // 1. Ambil antrian data basi dengan JOIN agar lebih efisien (hemat query)
+        $queue = $this->stockDataModel
+            ->select('stock_data.*, emiten.code')
+            ->join('emiten', 'emiten.id = stock_data.emiten_id')
+            ->orderBy('price_updated_at', 'ASC')
+            ->limit($limit)
+            ->findAll();
+
+        if (empty($queue))
+            return "Antrian kosong.";
 
         $successCount = 0;
         $failCount = 0;
+        $today = date('Y-m-d');
+        $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
         foreach ($queue as $item) {
-            // Ambil kode emiten (Contoh: ADRO)
-            $emiten = $this->emitenModel->find($item['emiten_id']);
+            $symbol = ($item['code'] === 'IHSG') ? '^JKSE' : strtoupper($item['code']) . ".JK";
+            $end = time();
+            $start = strtotime('-7 days', $end); // Ambil 7 hari agar aman melompati long weekend
 
-            if (!$emiten) {
-                $failCount++;
-                continue;
-            }
-
-            // Tambahkan suffix .JK untuk Bursa Efek Indonesia
-            $symbol = $emiten['code'] . ".JK";
-            $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?interval=1d&range=1d";
+            $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?period1={$start}&period2={$end}&interval=1d";
 
             try {
                 $response = $this->client->request('GET', $url, [
                     'headers' => [
-                        'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                        'User-Agent' => $userAgent,
                         'Accept' => 'application/json',
                     ],
-                    'verify' => false, // Penting untuk localhost agar tidak error SSL
+                    'verify' => false,
                     'timeout' => 10
                 ]);
 
                 $body = json_decode($response->getBody(), true);
                 $result = $body['chart']['result'][0] ?? null;
 
-                // 2. Validasi apakah data meta tersedia
-                if ($result && isset($result['meta']['regularMarketPrice'])) {
+                if ($result && isset($result['timestamp'])) {
                     $meta = $result['meta'];
+                    $timestamps = $result['timestamp'];
+                    $closePrices = $result['indicators']['quote'][0]['close'] ?? [];
 
-                    // 3. Simpan data ke MariaDB sesuai struktur terbaru
-                    $this->stockDataModel->update($item['id'], [
-                        'last_price' => $meta['regularMarketPrice'] ?? 0,
-                        'previous_close' => $meta['chartPreviousClose'] ?? 0,
-                        'day_high' => $meta['regularMarketDayHigh'] ?? 0,
-                        'day_low' => $meta['regularMarketDayLow'] ?? 0,
-                        'price_updated_at' => date('Y-m-d H:i:s') // Reset antrian ke waktu terbaru
-                    ]);
+                    // Filter data null (Yahoo sering kirim null di hari libur)
+                    $cleanPrices = array_values(array_filter($closePrices, fn($p) => $p !== null));
+                    $count = count($cleanPrices);
 
-                    $successCount++;
+                    if ($count > 0) {
+                        $lastPrice = (float) $cleanPrices[$count - 1];
+                        $lastDataDate = date('Y-m-d', end($timestamps));
+
+                        /**
+                         * LOGIKA HARI LIBUR:
+                         * Jika tanggal data terakhir bukan hari ini, berarti market libur.
+                         * Set previous_close = lastPrice agar change = 0%.
+                         */
+                        if ($lastDataDate !== $today) {
+                            $truePrevClose = $lastPrice;
+                        } else {
+                            // Jika market buka, previous close adalah harga sebelum harga terakhir
+                            $truePrevClose = $count > 1 ? (float) $cleanPrices[$count - 2] : (float) ($meta['chartPreviousClose'] ?? $lastPrice);
+                        }
+
+                        $this->stockDataModel->update($item['id'], [
+                            'last_price' => $lastPrice,
+                            'previous_close' => $truePrevClose,
+                            'day_high' => $meta['regularMarketDayHigh'] ?? $lastPrice,
+                            'day_low' => $meta['regularMarketDayLow'] ?? $lastPrice,
+                            'price_updated_at' => date('Y-m-d H:i:s')
+                        ]);
+                        $successCount++;
+                    } else {
+                        throw new \Exception("Data harga kosong");
+                    }
                 } else {
-                    // Jika data meta tidak ada, tetap update timestamp agar tidak stuck di antrian
+                    // Update timestamp saja agar tidak nyangkut di antrian awal
                     $this->stockDataModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
                     $failCount++;
-                    log_message('debug', "Data tidak ditemukan untuk simbol: {$symbol}");
                 }
 
-                // 4. Jeda 1 detik untuk menghindari Rate Limit (IP Banned)
-                sleep(1);
+                // Jeda agar tidak dianggap spammer oleh Yahoo
+                usleep(rand(1000000, 2000000));
 
             } catch (\Exception $e) {
-                // Catat error ke log CI4 jika terjadi kegagalan koneksi
-                log_message('error', "Fetch Error [{$symbol}]: " . $e->getMessage());
-
-                // Tetap update timestamp agar antrian terus berputar
                 $this->stockDataModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
                 $failCount++;
             }
         }
 
-        return "Update Harga Emiten Selesai: {$successCount} Berhasil, {$failCount} Gagal.";
+        return "Sync: {$successCount} OK, {$failCount} Fail.";
     }
 }

@@ -39,7 +39,7 @@ class StockDataModel extends Model
      */
     public function getStockSummary()
     {
-        return $this->select('emiten.code, emiten.name, emiten.sector, emiten.image, stock_data.*')
+        return $this->select('emiten.code, emiten.name, emiten.sector, emiten.notation, emiten.image, stock_data.*')
             ->join('emiten', 'emiten.id = stock_data.emiten_id')
             ->orderBy('stock_data.price_updated_at', 'DESC')
             ->findAll();
