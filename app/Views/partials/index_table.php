@@ -299,12 +299,45 @@
             const row = document.getElementById(`row-${stock.code}`);
             if (row) {
                 const priceEl = row.querySelector('.last-price');
+                const changeWrapper = row.querySelector('.text-success, .text-danger'); // Container persen
+                const changeIcon = changeWrapper.querySelector('i'); // Ikon Lucide
+                const changeText = changeWrapper.lastChild; // Text node persen
+
                 const newPrice = new Intl.NumberFormat('id-ID').format(stock.last_price);
+
+                // Cek jika harga berubah
                 if (priceEl.innerText !== newPrice) {
+                    // 1. Update Harga Utama
                     priceEl.innerText = newPrice;
-                    priceEl.style.color = '#38bdf8';
-                    priceEl.style.transition = 'color 0.3s';
+
+                    // 2. Hitung Ulang Perubahan & Persentase
+                    const prevClose = parseFloat(stock.previous_close); // Pastikan data ini dikirim dari server
+                    const change = stock.last_price - prevClose;
+                    const percent = (prevClose > 0) ? (change / prevClose) * 100 : 0;
+                    const percentFormatted = Math.abs(percent).toFixed(2) + '%';
+
+                    // 3. Update Warna dan Ikon Berdasarkan Tren Baru
+                    if (change >= 0) {
+                        changeWrapper.className = 'fw-bold small d-flex align-items-center justify-content-end gap-1 text-success';
+                        if (changeIcon.getAttribute('data-lucide') !== 'trending-up') {
+                            changeIcon.setAttribute('data-lucide', 'trending-up');
+                        }
+                    } else {
+                        changeWrapper.className = 'fw-bold small d-flex align-items-center justify-content-end gap-1 text-danger';
+                        if (changeIcon.getAttribute('data-lucide') !== 'trending-down') {
+                            changeIcon.setAttribute('data-lucide', 'trending-down');
+                        }
+                    }
+
+                    // 4. Update Teks Persentase
+                    changeText.textContent = ' ' + percentFormatted;
+
+                    // 5. Efek Flash pada harga
+                    priceEl.style.color = (change >= 0) ? '#10b981' : '#ef4444';
                     setTimeout(() => priceEl.style.color = 'white', 2000);
+
+                    // Re-render Ikon Lucide jika berubah
+                    if (typeof lucide !== 'undefined') lucide.createIcons();
                 }
             }
         });

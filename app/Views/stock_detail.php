@@ -355,7 +355,7 @@ if ($day >= 1 && $day <= 5) {
         btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>AI Thinking...';
         aiBox.style.opacity = '0.4';
         try {
-            const response = await fetch(`<?= base_url('api/analyze-ai') ?>/${code}`);
+            const response = await fetch(`<?= base_url('api/analyze') ?>/${code}`);
             const data = await response.json();
             if (data.status === 'success') {
                 aiBox.innerHTML = marked.parse(data.analysis);

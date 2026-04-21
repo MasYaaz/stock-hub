@@ -20,7 +20,6 @@ class AIAnalysisController extends BaseController
 
         $analysisModel = new StockAnalysisModel();
         $userModel = new UserModel();
-        $emitenModel = new EmitenModel();
         $stockDataModel = new StockDataModel();
         $historyModel = new StockHistoryModel();
         $client = \Config\Services::curlrequest();
@@ -122,27 +121,37 @@ class AIAnalysisController extends BaseController
         $prompt .= "Format: Markdown, Bahasa Indonesia, Profesional.";
 
         // 6. Eksekusi ke DeepSeek (Ollama Lokal)
-        $url = "http://localhost:11434/api/chat";
+        $url = env('OLLAMA_URL');
+        $apiKey = env('OLLAMA_API_KEY');
         $payload = [
-            "model" => "deepseek-v3.1:671b-cloud",
+            "model" => "deepseek-v3.2:cloud",
             "messages" => [["role" => "user", "content" => $prompt]],
             "stream" => false,
-            "options" => ["temperature" => 0.3]
         ];
 
         try {
             $response = $client->setBody(json_encode($payload))
                 ->setHeader('Content-Type', 'application/json')
-                ->request('POST', $url, ['timeout' => 180]);
+                ->setHeader('Authorization', 'Bearer ' . $apiKey)
+                ->request('POST', $url, ['timeout' => 180, 'verify' => false]);
 
             $result = json_decode($response->getBody(), true);
             $aiText = $result['message']['content'] ?? "Gagal mendapatkan respon AI.";
 
-            // --- BAGIAN KRUSIAL: DATABASE TRANSACTION ---
+            // GATEKEEPER: Cek validitas konten AI
+            // Jangan masuk ke database transaction jika AI tidak memberikan jawaban berguna
+            if ($aiText === "Gagal mendapatkan respon AI." || strlen($aiText) < 50) {
+                return $this->response->setStatusCode(502)->setJSON([
+                    'status' => 'error',
+                    'message' => 'AI gagal memberikan analisis yang valid. Saldo Anda tidak terpotong.'
+                ]);
+            }
+
+            // DATABASE TRANSACTION
             $db = \Config\Database::connect();
             $db->transStart();
 
-            // A. Simpan hasil analisis ke tabel baru (stock_analyses)
+            // Simpan hasil analisis ke tabel baru (stock_analyses)
             $analysisModel->insert([
                 'user_id' => $userId,
                 'ticker' => $code,
@@ -152,10 +161,13 @@ class AIAnalysisController extends BaseController
                 'created_at' => date('Y-m-d H:i:s')
             ]);
 
-            // B. Potong saldo token user
+            // POTONG TOKEN (Pastikan method ini melempar error jika saldo tidak cukup/gagal)
             $userModel->deductToken($userId, 1);
 
             $db->transComplete();
+
+            // AMBIL SALDO TERBARU (Agar sinkron dengan UI)
+            $updatedUser = $userModel->find($userId);
 
             if ($db->transStatus() === false) {
                 return $this->response->setStatusCode(500)->setJSON(['status' => 'error', 'message' => 'Gagal memproses transaksi token.']);
@@ -164,11 +176,15 @@ class AIAnalysisController extends BaseController
             return $this->response->setJSON([
                 'status' => 'success',
                 'analysis' => $aiText,
-                'remaining_tokens' => ($user->token_balance - 1)
+                'remaining_tokens' => $updatedUser->token_balance // Gunakan data asli DB
             ]);
 
         } catch (\Exception $e) {
-            return $this->response->setStatusCode(500)->setJSON(['status' => 'error', 'message' => 'Server AI sedang sibuk: ' . $e->getMessage()]);
+            log_message('error', "AI Analysis Exception: " . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => 'error',
+                'message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()
+            ]);
         }
     }
 }

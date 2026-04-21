@@ -19,6 +19,16 @@ class UserModel extends Model
      */
     public function deductToken($userId, $amount = 1)
     {
+        // Ambil data user terbaru untuk cek saldo
+        $user = $this->find($userId);
+
+        // Validasi: Jika user tidak ada atau saldo kurang
+        if (!$user || $user->token_balance < $amount) {
+            // Melempar exception agar transaksi di Controller otomatis gagal/rollback
+            throw new \Exception("Saldo token tidak mencukupi atau user tidak ditemukan.");
+        }
+
+        // Jalankan Update
         return $this->db->table($this->table)
             ->where('id', $userId)
             ->set('token_balance', 'token_balance - ' . (int) $amount, false)

@@ -20,14 +20,42 @@ class StockFetcher
     }
 
     /**
-     * Mengambil data saham secara bertahap dari Yahoo Finance
+     * Cek apakah IHSG sedang dalam jam operasional (WIB)
      */
+    private function isMarketOpen(): bool
+    {
+        // Set timezone ke Jakarta agar akurat dengan jam bursa
+        date_default_timezone_set('Asia/Jakarta');
+
+        $day = date('N'); // 1 (Senin) - 7 (Minggu)
+        $time = date('H:i');
+
+        // Market tutup di hari Sabtu (6) dan Minggu (7)
+        if ($day > 5)
+            return false;
+
+        /**
+         * Jam Bursa Indonesia (Normal): 
+         * Sesi 1 & 2 sekitar jam 09:00 - 16:00
+         * Kita set range 08:59 - 16:10 untuk menangkap data pre-opening & post-closing
+         */
+        if ($time < '08:59' || $time > '16:10') {
+            return false;
+        }
+
+        return true;
+    }
+
     public function fetchStepByStep(int $limit = 50)
     {
-        // Mencegah script timeout karena adanya jeda usleep
+        // LOGIKA BARU: Jika market tutup, langsung berhenti.
+        if (!$this->isMarketOpen()) {
+            return "Market sedang tutup (Libur/Luar Jam Kerja). Fetching dibatalkan.";
+        }
+
         set_time_limit(0);
 
-        // 1. Ambil antrian data basi dengan JOIN agar lebih efisien (hemat query)
+        // 1. Ambil antrian data
         $queue = $this->stockDataModel
             ->select('stock_data.*, emiten.code')
             ->join('emiten', 'emiten.id = stock_data.emiten_id')
@@ -44,9 +72,14 @@ class StockFetcher
         $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
         foreach ($queue as $item) {
+            // DOUBLE CHECK: Cek lagi di tengah loop (opsional)
+            // Berguna jika limit sangat besar sehingga loop memakan waktu berjam-jam
+            if (!$this->isMarketOpen())
+                break;
+
             $symbol = ($item['code'] === 'IHSG') ? '^JKSE' : strtoupper($item['code']) . ".JK";
             $end = time();
-            $start = strtotime('-7 days', $end); // Ambil 7 hari agar aman melompati long weekend
+            $start = strtotime('-7 days', $end);
 
             $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?period1={$start}&period2={$end}&interval=1d";
 
@@ -68,7 +101,6 @@ class StockFetcher
                     $timestamps = $result['timestamp'];
                     $closePrices = $result['indicators']['quote'][0]['close'] ?? [];
 
-                    // Filter data null (Yahoo sering kirim null di hari libur)
                     $cleanPrices = array_values(array_filter($closePrices, fn($p) => $p !== null));
                     $count = count($cleanPrices);
 
@@ -76,15 +108,10 @@ class StockFetcher
                         $lastPrice = (float) $cleanPrices[$count - 1];
                         $lastDataDate = date('Y-m-d', end($timestamps));
 
-                        /**
-                         * LOGIKA HARI LIBUR:
-                         * Jika tanggal data terakhir bukan hari ini, berarti market libur.
-                         * Set previous_close = lastPrice agar change = 0%.
-                         */
+                        // Logika Prev Close saat Market Buka vs Tutup
                         if ($lastDataDate !== $today) {
                             $truePrevClose = $lastPrice;
                         } else {
-                            // Jika market buka, previous close adalah harga sebelum harga terakhir
                             $truePrevClose = $count > 1 ? (float) $cleanPrices[$count - 2] : (float) ($meta['chartPreviousClose'] ?? $lastPrice);
                         }
 
@@ -100,12 +127,10 @@ class StockFetcher
                         throw new \Exception("Data harga kosong");
                     }
                 } else {
-                    // Update timestamp saja agar tidak nyangkut di antrian awal
                     $this->stockDataModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
                     $failCount++;
                 }
 
-                // Jeda agar tidak dianggap spammer oleh Yahoo
                 usleep(rand(1000000, 2000000));
 
             } catch (\Exception $e) {
@@ -114,6 +139,6 @@ class StockFetcher
             }
         }
 
-        return "Sync: {$successCount} OK, {$failCount} Fail.";
+        return "Sync: {$successCount} OK, {$failCount} Fail. Market Open: " . ($this->isMarketOpen() ? 'YES' : 'NO');
     }
 }

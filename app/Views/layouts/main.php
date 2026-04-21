@@ -5,11 +5,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= $title ?? 'BedahSaham' ?> | Stock Analyzer</title>
+    <link rel="icon" href="<?= base_url('favicon-light.svg'); ?>" media="(prefers-color-scheme: light)">
+    <link rel="icon" href="<?= base_url('favicon-dark.svg'); ?>" media="(prefers-color-scheme: dark)">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -43,18 +45,18 @@
             background-color: rgba(15, 23, 42, 0.6) !important;
             backdrop-filter: blur(12px) saturate(180%);
             border-bottom: 1px solid var(--border-dark);
-            padding: 0.8rem 0;
+            padding: 0.1rem 0;
             z-index: 1030;
         }
 
-        .navbar-brand {
-            font-weight: 800;
-            letter-spacing: -1px;
-            color: var(--accent-info) !important;
-            font-size: 1.5rem;
-            display: flex;
-            align-items: center;
-            gap: 10px;
+        .navbar-logo {
+            height: 64px;
+            /* Sesuaikan dengan selera, biasanya 30-36px */
+            width: auto;
+            /* Menjaga aspek rasio agar tidak penyet */
+            object-fit: contain;
+            /* Memberikan sedikit efek glow biru tipis agar match dengan tema */
+            filter: drop-shadow(0 0 8px rgba(56, 189, 248, 0.3));
         }
 
         /* Styling Token Badge */
@@ -91,7 +93,17 @@
 
         .btn-nav-accent:hover {
             background: #7dd3fc;
+            /* Warna biru lebih terang */
+            color: var(--bg-dark) !important;
+            /* Paksa teks tetap gelap agar terbaca */
             transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(56, 189, 248, 0.3);
+        }
+
+        /* Hover effect untuk link navigasi biasa */
+        .hover-info:hover {
+            color: var(--accent-info) !important;
+            transition: 0.2s;
         }
 
         main {
@@ -116,7 +128,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
         <div class="container">
             <a class="navbar-brand" href="<?= base_url('stock') ?>">
-                <i data-lucide="microscope"></i> BedahSaham
+                <img src="<?= base_url('favicon-dark.svg'); ?>" alt="logo" class="navbar-logo">
             </a>
 
             <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse"
@@ -127,9 +139,19 @@
             <div class="collapse navbar-collapse" id="navbarContent">
                 <ul class="navbar-nav ms-auto align-items-center gap-2 mt-3 mt-lg-0">
 
+                    <?php if (!url_is('stock') && !url_is('/')): ?>
+                        <li class="nav-item me-lg-2">
+                            <a href="<?= base_url('stock') ?>"
+                                class="nav-link text-slate hover-info d-flex align-items-center gap-1">
+                                <i data-lucide="arrow-left" size="16"></i>
+                                <span class="small fw-medium">Kembali</span>
+                            </a>
+                        </li>
+                    <?php endif; ?>
+
                     <?php if (session()->get('is_logged')): ?>
                         <li class="nav-item">
-                            <a href="<?= base_url('api/token') ?>" class="text-decoration-none">
+                            <a href="<?= base_url('stock/token') ?>" class="text-decoration-none">
                                 <div class="token-badge">
                                     <i data-lucide="coins" size="16"></i>
                                     <span><?= session()->get('token_balance') ?? 0 ?> Token</span>
@@ -140,32 +162,32 @@
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle d-flex align-items-center gap-2 px-3" href="#"
                                 id="profileDrop" role="button" data-bs-toggle="dropdown">
-                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center"
+                                <div class="bg-secondary rounded-circle d-flex align-items-center justify-content-center text-white"
                                     style="width: 32px; height: 32px;">
                                     <i data-lucide="user" size="18"></i>
                                 </div>
                                 <span><?= session()->get('username') ?></span>
                                 <i data-lucide="chevron-down" size="14"></i>
                             </a>
-                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark">
-                                <li><a class="dropdown-item py-2" href="<?= base_url('api/token') ?>"><i
-                                            data-lucide="shopping-cart" size="16" class="me-2"></i> Top Up Token</a></li>
-                                <li><a class="dropdown-item py-2" href="<?= base_url('api/token/history') ?>"><i
-                                            data-lucide="history" size="16" class="me-2"></i> Riwayat Transaksi</a></li>
+                            <ul class="dropdown-menu dropdown-menu-end dropdown-menu-dark shadow-lg">
+                                <li><a class="dropdown-item py-2" href="<?= base_url('stock/token') ?>">
+                                        <i data-lucide="shopping-cart" size="16" class="me-2"></i> Top Up</a></li>
+                                <li><a class="dropdown-item py-2" href="<?= base_url('stock/token/history') ?>">
+                                        <i data-lucide="history" size="16" class="me-2"></i> Riwayat</a></li>
                                 <li>
-                                    <hr class="dropdown-divider">
+                                    <hr class="dropdown-divider border-secondary">
                                 </li>
-                                <li><a class="dropdown-item py-2 text-danger" href="<?= base_url('logout') ?>"><i
-                                            data-lucide="log-out" size="16" class="me-2"></i> Keluar</a></li>
+                                <li><a class="dropdown-item py-2 text-danger" href="<?= base_url('logout') ?>">
+                                        <i data-lucide="log-out" size="16" class="me-2"></i> Keluar</a></li>
                             </ul>
                         </li>
                     <?php else: ?>
                         <li class="nav-item">
-                            <a href="<?= base_url('login') ?>" class="nav-link text-white">Masuk</a>
+                            <a href="<?= base_url('login') ?>" class="nav-link text-white px-3">Masuk</a>
                         </li>
                         <li class="nav-item">
                             <a href="<?= base_url('register') ?>"
-                                class="btn btn-nav-accent btn-sm rounded-pill px-4 ms-lg-2">
+                                class="btn btn-nav-accent btn-sm rounded-pill px-4 ms-lg-2 fw-bold">
                                 Daftar Gratis
                             </a>
                         </li>
@@ -177,16 +199,6 @@
     </nav>
 
     <main class="container py-4">
-        <?php if (url_is('stock/detail/*')): ?>
-            <div class="mb-4">
-                <a href="<?= base_url('stock') ?>"
-                    class="text-decoration-none text-slate hover-info d-inline-flex align-items-center gap-2">
-                    <i data-lucide="arrow-left" size="16"></i>
-                    <span>Kembali ke Dashboard</span>
-                </a>
-            </div>
-        <?php endif; ?>
-
         <?= $this->renderSection('content') ?>
     </main>
 

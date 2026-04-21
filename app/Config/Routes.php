@@ -17,6 +17,13 @@ $routes->group('stock', function ($routes) {
     $routes->get('detail/(:segment)', 'StockDetailController::detail/$1');
 });
 
+$routes->group('stock', ['filter' => 'auth'], function ($routes) {
+    // Sistem Token
+    $routes->get('token', 'TokenController::index');
+    $routes->get('token/buy/(:num)', 'TokenController::buy/$1');
+    $routes->get('token/history', 'TokenController::history');
+});
+
 // 3. Autentikasi (Login & Register)
 $routes->get('login', 'AuthController::login');
 $routes->post('login', 'AuthController::attemptLogin');
@@ -26,12 +33,7 @@ $routes->get('logout', 'AuthController::logout');
 
 // 4. Fitur Berbayar & AI (Gunakan Filter Auth agar harus login)
 // Catatan: Pastikan kamu sudah membuat Filter 'auth' di app/Config/Filters.php
-$routes->group('api', ['filter' => 'auth'], function ($routes) {
+$routes->group('api', function ($routes) {
     // Analisis AI
-    $routes->get('analyze-ai/(:any)', 'AIAnalysisController::analyze/$1');
-
-    // Sistem Token
-    $routes->get('token', 'TokenController::index');
-    $routes->get('token/buy/(:num)', 'TokenController::buy/$1');
-    $routes->get('token/history', 'TokenController::history');
+    $routes->get('analyze/(:any)', 'AIAnalysisController::analyze/$1');
 });

@@ -52,7 +52,7 @@
                             <li class="mb-3 d-flex align-items-center gap-3">
                                 <div class="icon-circle shadow-sm"><i data-lucide="zap" size="14" class="text-info"></i>
                                 </div>
-                                <span class="text-slate small">Analisis Instan DeepSeek-V3</span>
+                                <span class="text-slate small">Analisis Menggunakan AI</span>
                             </li>
                             <li class="mb-3 d-flex align-items-center gap-3">
                                 <div class="icon-circle shadow-sm"><i data-lucide="infinity" size="14"
@@ -62,12 +62,13 @@
                             <li class="mb-3 d-flex align-items-center gap-3">
                                 <div class="icon-circle shadow-sm"><i data-lucide="shield-check" size="14"
                                         class="text-info"></i></div>
-                                <span class="text-slate small">Akses Prioritas Server Lokal</span>
+                                <span class="text-slate small">Analisa dengan data terbaru</span>
                             </li>
                         </ul>
 
-                        <a href="<?= base_url('api/token/buy/' . $p->id) ?>"
-                            class="btn btn-buy w-100 fw-bold py-3 rounded-pill transition shadow-lg">
+                        <a href="javascript:void(0)" data-url="<?= base_url('stock/token/buy/' . $p->id) ?>"
+                            data-package="<?= $p->package_name ?>" data-price="<?= number_format($p->price, 0, ',', '.') ?>"
+                            class="btn btn-buy btn-confirm-buy w-100 fw-bold py-3 rounded-pill transition shadow-lg">
                             Beli Sekarang
                         </a>
                     </div>
@@ -142,5 +143,64 @@
 
 <script>
     lucide.createIcons();
+
+    // Logika Konfirmasi Pembelian
+    document.querySelectorAll('.btn-confirm-buy').forEach(button => {
+        button.addEventListener('click', function (e) {
+            const targetUrl = this.getAttribute('data-url');
+            const packageName = this.getAttribute('data-package');
+            const price = this.getAttribute('data-price');
+
+            Swal.fire({
+                title: 'Konfirmasi Pembelian',
+                html: `Anda akan membeli paket <b>${packageName}</b><br>seharga <b class="text-success">Rp ${price}</b>`,
+                icon: 'question',
+                showCancelButton: true,
+                confirmButtonColor: '#38bdf8', // Warna accent-info kamu
+                cancelButtonColor: '#1e293b',
+                confirmButtonText: 'Ya, Beli!',
+                cancelButtonText: 'Batal',
+                background: '#0f172a', // Menyesuaikan tema dark kamu
+                color: '#ffffff',
+                backdrop: `rgba(15, 23, 42, 0.6)`
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // Tampilkan loading sebentar sebelum redirect
+                    Swal.fire({
+                        title: 'Memproses...',
+                        text: 'Mengarahkan ke pembayaran',
+                        allowOutsideClick: false,
+                        didOpen: () => {
+                            Swal.showLoading();
+                        }
+                    });
+
+                    // Redirect ke URL pembelian
+                    window.location.href = targetUrl;
+                }
+            });
+        });
+    });
+
+    // Opsional: Cek jika ada flash data sukses/gagal dari controller
+    <?php if (session()->getFlashdata('success')): ?>
+        Swal.fire({
+            icon: 'success',
+            title: 'Berhasil!',
+            text: '<?= session()->getFlashdata('success') ?>',
+            background: '#0f172a',
+            color: '#ffffff'
+        });
+    <?php endif; ?>
+
+    <?php if (session()->getFlashdata('error')): ?>
+        Swal.fire({
+            icon: 'error',
+            title: 'Gagal',
+            text: '<?= session()->getFlashdata('error') ?>',
+            background: '#0f172a',
+            color: '#ffffff'
+        });
+    <?php endif; ?>
 </script>
 <?= $this->endSection() ?>

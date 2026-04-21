@@ -50,7 +50,7 @@ class TokenController extends BaseController
         // 2. Tambah Saldo Token User
         $userModel->addToken($userId, $package->token_amount);
 
-        return redirect()->to('/token')->with('success', "Berhasil membeli {$package->package_name}!");
+        return redirect()->to('/stock/token')->with('success', "Berhasil membeli {$package->package_name}!");
     }
 
     public function history()
