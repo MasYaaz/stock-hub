@@ -38,15 +38,15 @@ RUN chown -R www-data:www-data /var/www/html/writable \
 
 # 9. Script starter dengan Migrasi dan Stock Sync otomatis
 RUN echo "#!/bin/sh" > /start.sh && \
-    # Menjalankan migrasi database
     echo "echo 'Running migrations...'" >> /start.sh && \
-    echo "php spark migrate --all || echo 'Migration failed or already up to date'" >> /start.sh && \
+    echo "php spark migrate --all || echo 'Migration failed'" >> /start.sh && \
     \
-    # Menjalankan sinkronisasi stok (Stock Sync)
-    echo "echo 'Syncing stock data...'" >> /start.sh && \
-    echo "php spark stock:sync || echo 'Stock sync failed'" >> /start.sh && \
+    # Jalankan sync di BACKGROUND (pake simbol &)
+    # Supaya Nginx gak nungguin sync selesai
+    echo "echo 'Syncing stock data in background...'" >> /start.sh && \
+    echo "php spark stock:sync > /dev/null 2>&1 &" >> /start.sh && \
     \
-    # Menjalankan PHP-FPM dan Nginx
+    # Jalankan service utama
     echo "php-fpm -D" >> /start.sh && \
     echo "nginx -g 'daemon off;'" >> /start.sh && \
     chmod +x /start.sh
