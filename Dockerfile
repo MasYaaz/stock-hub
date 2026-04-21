@@ -43,9 +43,9 @@ RUN echo "#!/bin/sh" > /start.sh && \
     \
     # Jalankan sync di BACKGROUND (pake simbol &)
     # Supaya Nginx gak nungguin sync selesai
-    echo "echo 'Syncing stock data in background...'" >> /start.sh && \
-    echo "php spark stock:sync > /dev/null 2>&1 &" >> /start.sh && \
-    \
+    # echo "echo 'Syncing stock data in background...'" >> /start.sh && \
+    # echo "php spark stock:sync > /dev/null 2>&1 &" >> /start.sh && \
+    # \
     # Jalankan service utama
     echo "php-fpm -D" >> /start.sh && \
     echo "nginx -g 'daemon off;'" >> /start.sh && \
