@@ -321,10 +321,11 @@
                 const fullBB = calculateBollingerBands(rawPrices, 20);
                 const rsiArr = calculateRSI(rawPrices, 14);
 
-                // 2. POTONG DATA (Slicing)
-                // Kita buang 20 data pertama (buffer) agar chart tampil bersih
-                // Jika data sedikit (seperti 1D/NOW), kita tidak perlu potong terlalu banyak
-                const bufferCount = rawPrices.length > 30 ? 20 : 0;
+                // 2. POTONG DATA (Slicing) yang cerdas
+                // Jika range adalah 1d, JANGAN POTONG data agar 09:00 tetap muncul.
+                // Kita hanya potong buffer untuk range mingguan/bulanan agar indikator teknikal stabil.
+                const isIntraday = range.toLowerCase() === '1d';
+                const bufferCount = (!isIntraday && rawPrices.length > 30) ? 20 : 0;
 
                 const displayPrices = rawPrices.slice(bufferCount);
                 const displayLabels = rawLabels.slice(bufferCount);

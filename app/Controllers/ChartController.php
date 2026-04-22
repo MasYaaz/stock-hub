@@ -1,149 +1,62 @@
 <?php
+
 namespace App\Controllers;
 
 use App\Models\EmitenModel;
 use App\Models\StockDataModel;
+use Config\Services;
 
 class ChartController extends BaseController
 {
+    /**
+     * Endpoint utama untuk mengambil histori chart
+     */
     public function get_history($symbol, $range = '1d')
     {
-        // 1. Set Timezone di awal agar sinkron
         date_default_timezone_set('Asia/Jakarta');
 
-        $ticker = ($symbol === 'IHSG') ? '^JKSE' : strtoupper($symbol) . ".JK";
         $cacheKey = "stock_history_{$symbol}_{$range}";
-        $today = date('Y-m-d'); // Tanggal hari ini di Jakarta
-
-        // Hapus baris cache ini saat testing agar perubahan kode langsung terasa
         if ($cachedData = cache($cacheKey)) {
             return $this->response->setJSON($cachedData);
         }
 
-        $end = time();
-        // Tentukan rentang waktu & interval
-        // Tambahkan padding sekitar 20-30 unit data ekstra di setiap range
-        switch ($range) {
-            case '1d':
-                // Untuk 1D, kita tarik 5 hari agar 20 titik pertama (5m) terpenuhi
-                $start = strtotime('-5 days', $end);
-                $interval = '5m';
-                break;
-            case '1w':
-                // Untuk 1W, tarik 20 hari agar SMA 20 (30m) punya data awal
-                $start = strtotime('-20 days', $end);
-                $interval = '30m';
-                break;
-            case '1m':
-                // Tarik 60 hari agar data 1 bulan (1d) terhitung penuh sejak awal
-                $start = strtotime('-60 days', $end);
-                $interval = '1d';
-                break;
-            case '6m':
-                $start = strtotime('-210 days', $end);
-                $interval = '1d';
-                break;
-            default:
-                $start = strtotime('-400 days', $end);
-                $interval = '1d';
-                break;
-        }
+        // 1. Tentukan Parameter Fetching
+        [$start, $interval] = $this->parseRangeParameters($range);
+        $ticker = ($symbol === 'IHSG') ? '^JKSE' : strtoupper($symbol) . ".JK";
 
-        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$ticker}?period1={$start}&period2={$end}&interval={$interval}";
-        $client = \Config\Services::curlrequest();
-
+        // 2. Fetch Data dari Yahoo Finance
         try {
-            $response = $client->request('GET', $url, [
-                'headers' => ['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) Chrome/122.0.0.0 Safari/537.36'],
-                'verify' => false,
-                'timeout' => 15
-            ]);
-
-            $body = json_decode($response->getBody(), true);
-            $result = $body['chart']['result'][0] ?? null;
-
-            if (!$result || !isset($result['timestamp'])) {
+            $rawResult = $this->fetchFromYahoo($ticker, $start, $interval);
+            if (!$rawResult) {
                 return $this->response->setJSON(['labels' => [], 'prices' => [], 'msg' => 'Data tidak tersedia']);
             }
 
-            // Ambil penutupan terakhir & tanggal data terakhir
-            $timestamps = $result['timestamp'];
-            $prices = $result['indicators']['quote'][0]['close'] ?? [];
-
-            $allData = [];
-            foreach ($timestamps as $key => $ts) {
-                if (isset($prices[$key]) && $prices[$key] !== null) {
-                    $allData[] = [
-                        'ts' => (int) $ts,
-                        'price' => (float) $prices[$key],
-                        'date_key' => date('Y-m-d', $ts)
-                    ];
-                }
+            // 3. Transform & Clean Data
+            $allData = $this->transformRawData($rawResult);
+            if (empty($allData)) {
+                return $this->response->setJSON(['labels' => [], 'prices' => []]);
             }
 
-            if (empty($allData))
-                return $this->response->setJSON(['labels' => [], 'prices' => []]);
-
+            // 4. Filter berdasarkan Range (1d vs Others)
             $latestEntry = end($allData);
             $latestDateInData = $latestEntry['date_key'];
-            $lastPrice = (float) $latestEntry['price'];
+            [$labels, $prices] = $this->filterByRange($allData, $range, $latestDateInData);
 
-            // Filter label dan harga
-            $cleanLabels = [];
-            $cleanPrices = [];
-            if ($range == '1d') {
-                foreach ($allData as $data) {
-                    if ($data['date_key'] === $latestDateInData) {
-                        $cleanLabels[] = date('H:i', $data['ts']);
-                        $cleanPrices[] = $data['price'];
-                    }
-                }
-            } else {
-                foreach ($allData as $data) {
-                    $cleanLabels[] = ($range == '1w') ? date('d M H:i', $data['ts']) : date('d M y', $data['ts']);
-                    $cleanPrices[] = $data['price'];
-                }
-            }
-
-            // LOGIKA PENENTUAN REFERENCE
-            $stockDataModel = new StockDataModel();
-            $emitenModel = new EmitenModel();
-            $referencePrice = 0;
-
-            if ($range == '1d') {
-                // CEK APAKAH MARKET LIBUR (Tanggal data terakhir bukan hari ini)
-                if ($latestDateInData !== $today) {
-                    // MARKET LIBUR: Reference disamakan dengan Last Price agar Change = 0
-                    $referencePrice = $lastPrice;
-                } else {
-                    // MARKET BUKA: Ambil Previous Close dari DB
-                    $emiten = $emitenModel->where('code', $symbol)->first();
-                    $prevCloseFromDb = 0;
-                    if ($emiten) {
-                        $stock = $stockDataModel->where('emiten_id', $emiten['id'])->first();
-                        $prevCloseFromDb = (float) ($stock['previous_close'] ?? 0);
-                    }
-                    $referencePrice = ($prevCloseFromDb > 0) ? $prevCloseFromDb : (float) $cleanPrices[0];
-                }
-            } else {
-                // RANGE 1W, 1M, dst: Pakai harga pertama di dataset
-                $referencePrice = (float) $cleanPrices[0];
-            }
-
-            $change = $lastPrice - $referencePrice;
-            $changePct = ($referencePrice > 0) ? ($change / $referencePrice) * 100 : 0;
+            // 5. Kalkulasi Reference & Change
+            $referencePrice = $this->calculateReference($symbol, $range, $prices, $latestEntry['price']);
+            $changeRaw = $latestEntry['price'] - $referencePrice;
+            $changePct = ($referencePrice > 0) ? ($changeRaw / $referencePrice) * 100 : 0;
 
             $finalResponse = [
                 'symbol' => $symbol,
-                'last_price' => $lastPrice,
+                'last_price' => $latestEntry['price'],
                 'reference_price' => $referencePrice,
-                'change_raw' => round($change, 2),
+                'change_raw' => round($changeRaw, 2),
                 'change_pct' => round($changePct, 2),
                 'last_date' => $latestDateInData,
-                'today_server' => $today, // Untuk debug
-                'is_market_open' => ($latestDateInData === $today),
-                'labels' => $cleanLabels,
-                'prices' => $cleanPrices,
+                'is_market_open' => ($latestDateInData === date('Y-m-d')),
+                'labels' => $labels,
+                'prices' => $prices,
             ];
 
             cache()->save($cacheKey, $finalResponse, 120);
@@ -152,5 +65,112 @@ class ChartController extends BaseController
         } catch (\Exception $e) {
             return $this->response->setStatusCode(500)->setJSON(['error' => $e->getMessage()]);
         }
+    }
+
+    /**
+     * Mengubah range input menjadi timestamp start dan interval string
+     */
+    private function parseRangeParameters(string $range): array
+    {
+        $end = time();
+        return match ($range) {
+            '1d' => [strtotime('-5 days', $end), '1m'],
+            '1w' => [strtotime('-20 days', $end), '30m'],
+            '1m' => [strtotime('-60 days', $end), '1d'],
+            '6m' => [strtotime('-210 days', $end), '1d'],
+            default => [strtotime('-400 days', $end), '1d'],
+        };
+    }
+
+    /**
+     * Request ke API Yahoo Finance
+     */
+    private function fetchFromYahoo($ticker, $start, $interval)
+    {
+        $end = time();
+        $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$ticker}?period1={$start}&period2={$end}&interval={$interval}";
+
+        $client = Services::curlrequest();
+        $response = $client->request('GET', $url, [
+            'headers' => ['User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'],
+            'verify' => false,
+            'timeout' => 15
+        ]);
+
+        $body = json_decode($response->getBody(), true);
+        return $body['chart']['result'][0] ?? null;
+    }
+
+    /**
+     * Membersihkan data null dan merapikan struktur data
+     */
+    private function transformRawData(array $result): array
+    {
+        $timestamps = $result['timestamp'] ?? [];
+        $closePrices = $result['indicators']['quote'][0]['close'] ?? [];
+        $data = [];
+
+        foreach ($timestamps as $key => $ts) {
+            if (isset($closePrices[$key]) && $closePrices[$key] !== null) {
+                $data[] = [
+                    'ts' => (int) $ts,
+                    'price' => (float) $closePrices[$key],
+                    'date_key' => date('Y-m-d', $ts)
+                ];
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * Memisahkan labels dan prices berdasarkan tipe chart
+     */
+    private function filterByRange(array $allData, string $range, string $latestDate): array
+    {
+        $labels = [];
+        $prices = [];
+
+        foreach ($allData as $item) {
+            if ($range === '1d' && $item['date_key'] !== $latestDate)
+                continue;
+
+            $labels[] = match ($range) {
+                '1d' => date('H:i', $item['ts']),
+                '1w' => date('d M H:i', $item['ts']),
+                default => date('d M y', $item['ts']),
+            };
+            $prices[] = $item['price'];
+        }
+
+        return [$labels, $prices];
+    }
+
+    /**
+     * Logika penentuan harga referensi (mencegah change di akhir pekan)
+     */
+    private function calculateReference($symbol, $range, $cleanPrices, $lastPrice): float
+    {
+        if ($range !== '1d') {
+            return (float) ($cleanPrices[0] ?? $lastPrice);
+        }
+
+        // Khusus 1D: Cek Akhir Pekan (Sabtu = 6, Minggu = 7)
+        if (date('N') >= 6) {
+            return (float) $lastPrice; // Change % jadi 0
+        }
+
+        // Hari Kerja: Ambil Prev Close dari Database
+        $emitenModel = new EmitenModel();
+        $stockModel = new StockDataModel();
+
+        $emiten = $emitenModel->where('code', $symbol)->first();
+        if ($emiten) {
+            $stock = $stockModel->where('emiten_id', $emiten['id'])->first();
+            if (!empty($stock['previous_close'])) {
+                return (float) $stock['previous_close'];
+            }
+        }
+
+        return (float) ($cleanPrices[0] ?? $lastPrice);
     }
 }
