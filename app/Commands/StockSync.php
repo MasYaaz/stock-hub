@@ -21,9 +21,9 @@ class StockSync extends BaseCommand
             $result = $fetcher->fetchStepByStep(50);
             CLI::write('[' . date('H:i:s') . '] ' . $result);
 
-            // Jeda 30 detik agar tidak membebani CPU Ryzen 5500 kamu
+            // Jeda 1 - 2 detik agar tidak membebani CPU Ryzen 5500 kamu
             // dan tidak kena ban oleh Yahoo Finance
-            sleep(1);
+            sleep(rand(1, 2));
         }
     }
 }
