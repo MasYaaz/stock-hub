@@ -3,7 +3,6 @@
 namespace App\Controllers;
 
 use App\Models\EmitenModel;
-use App\Models\StockDataModel;
 use Config\Services;
 
 class ChartController extends BaseController
@@ -161,14 +160,9 @@ class ChartController extends BaseController
 
         // Hari Kerja: Ambil Prev Close dari Database
         $emitenModel = new EmitenModel();
-        $stockModel = new StockDataModel();
-
-        $emiten = $emitenModel->where('code', $symbol)->first();
-        if ($emiten) {
-            $stock = $stockModel->where('emiten_id', $emiten['id'])->first();
-            if (!empty($stock['previous_close'])) {
-                return (float) $stock['previous_close'];
-            }
+        $emiten = $emitenModel->getByCode($symbol);
+        if ($emiten && !empty($emiten['previous_close'])) {
+            return (float) $emiten['previous_close'];
         }
 
         return (float) ($cleanPrices[0] ?? $lastPrice);

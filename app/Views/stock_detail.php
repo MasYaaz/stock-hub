@@ -34,16 +34,13 @@ if ($day >= 1 && $day <= 5) {
         <div class="relative flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div class="flex items-center gap-4">
                 <div class="relative">
-                    <?php if ($stock['image']): ?>
-                        <img src="<?= $stock['image'] ?>"
-                            class="w-14 h-14 rounded-xl object-contain bg-white p-1.5 border-2 border-slate-700 shadow-sm"
-                            alt="logo">
-                    <?php else: ?>
-                        <div
-                            class="w-14 h-14 rounded-xl flex items-center justify-center bg-slate-900 text-slate-500 border border-slate-700">
-                            <i data-lucide="building-2" class="w-6 h-6"></i>
-                        </div>
-                    <?php endif; ?>
+
+                    <img src="https://financialmodelingprep.com/image-stock/<?= $stock['code'] ?>.JK.png"
+                        onerror="handleMissingLogo(this, '<?= $stock['code'] ?>')"
+                        class="w-14 h-14 rounded-xl object-contain bg-white p-1.5 border-2 border-slate-700 shadow-sm"
+                        alt="<?= $stock['code'] ?>" />
+
+
                 </div>
 
                 <div>
@@ -200,6 +197,24 @@ if ($day >= 1 && $day <= 5) {
 <script>
     lucide.createIcons();
 
+    /**
+     * Fungsi untuk menangani logo yang tidak ditemukan (404)
+     * Mengganti image dengan inisial emiten menggunakan UI-Avatars
+     */
+    function handleMissingLogo(img, code) {
+        // Mencegah looping terus menerus jika UI-Avatars juga gagal (jarang terjadi)
+        img.onerror = null;
+
+        // Menggunakan UI-Avatars dengan style yang matching dengan dashboard kamu (Sky Blue)
+        // background: 0ea5e9 (Sky 500), color: fff (Putih), bold: true
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${code}&background=0ea5e9&color=fff&font-size=0.4&bold=true`;
+
+        img.src = fallbackUrl;
+
+        // Opsional: Beri style tambahan pada parent agar terlihat lebih rapi sebagai "initial icon"
+        img.parentElement.classList.add('bg-slate-800');
+    }
+
     async function triggerAI(code) {
         const aiBox = document.getElementById('aiContent');
         const btn = document.getElementById('btnAI');
@@ -216,6 +231,12 @@ if ($day >= 1 && $day <= 5) {
             if (data.status === 'success') {
                 aiBox.innerHTML = marked.parse(data.analysis);
                 aiBox.style.opacity = '1';
+                const navBalance = document.getElementById('nav-token-balance');
+                if (navBalance && data.remaining_tokens !== undefined) {
+                    // Format angka dengan titik (Indonesian style)
+                    const formatted = new Intl.NumberFormat('id-ID').format(data.remaining_tokens);
+                    navBalance.innerHTML = `${formatted} <span class="hidden lg:inline text-[10px] opacity-70">TOKEN</span>`;
+                }
             }
         } catch (error) {
             aiBox.innerHTML = '<div class="text-red-400 p-4 bg-red-400/10 border border-red-400/20 rounded-xl text-xs">Gagal memproses AI. Pastikan server Ollama aktif.</div>';

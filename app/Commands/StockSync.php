@@ -23,7 +23,7 @@ class StockSync extends BaseCommand
 
             // Jeda 30 detik agar tidak membebani CPU Ryzen 5500 kamu
             // dan tidak kena ban oleh Yahoo Finance
-            sleep(2);
+            sleep(1);
         }
     }
 }

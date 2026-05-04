@@ -2,13 +2,11 @@
 namespace App\Controllers;
 
 use App\Models\EmitenModel;
-use App\Models\StockDataModel;
 
 class DashboardController extends BaseController
 {
     public function index(): string
     {
-        $stockDataModel = new StockDataModel();
         $emitenModel = new EmitenModel();
 
         if ($emitenModel->countAllResults() == 0) {
@@ -17,7 +15,7 @@ class DashboardController extends BaseController
 
         $data = [
             'title' => 'Dashboard BedahSaham',
-            'stocks' => $stockDataModel->getStockSummary(),
+            'stocks' => $emitenModel->getStockSummary(),
             'total' => $emitenModel->countAllResults()
         ];
         return view('stock_index', $data);
@@ -28,8 +26,8 @@ class DashboardController extends BaseController
      */
     public function get_live_data()
     {
-        $stockDataModel = new StockDataModel();
-        return $this->response->setJSON($stockDataModel->getStockSummary());
+        $emitenModel = new EmitenModel();
+        return $this->response->setJSON($emitenModel->getStockSummary());
     }
 
     /**
@@ -42,7 +40,6 @@ class DashboardController extends BaseController
         set_time_limit(300);
 
         $emitenModel = new EmitenModel();
-        $stockDataModel = new StockDataModel();
 
         $jsonPath = WRITEPATH . 'data/all_stocks.json';
 
@@ -66,17 +63,11 @@ class DashboardController extends BaseController
 
                 // 2. Masukkan ke tabel emiten
                 // Deskripsi dan Image dibiarkan NULL dulu, akan diisi saat detail dibuka
-                $id = $emitenModel->insert([
+                $emitenModel->insert([
                     'code' => $s['code'],
                     'name' => $s['name'],
                     'sector' => $s['sector'] ?? 'Unknown',
-                    'notation' => $s['notation']
-                ]);
-
-                // 3. Buat baris di stock_data
-                // Set kedua timestamp ke tahun 2000 agar dianggap 'expired' oleh fetcher
-                $stockDataModel->insert([
-                    'emiten_id' => $id,
+                    'notation' => $s['notation'],
                     'last_price' => 0,
                     'price_updated_at' => '2000-01-01 00:00:00',
                     'fundamental_updated_at' => '2000-01-01 00:00:00'

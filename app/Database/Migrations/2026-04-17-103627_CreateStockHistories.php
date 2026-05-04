@@ -74,6 +74,7 @@ class CreateStockHistories extends Migration
         ]);
 
         $this->forge->addKey('id', true);
+        $this->forge->addUniqueKey(['emiten_id', 'period', 'year']);
         $this->forge->addForeignKey('emiten_id', 'emiten', 'id', 'CASCADE', 'CASCADE');
         $this->forge->createTable('stock_histories');
     }

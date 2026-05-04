@@ -2,81 +2,81 @@
 namespace App\Controllers;
 
 use App\Models\EmitenModel;
-use App\Models\StockDataModel;
 use App\Models\StockHistoryModel;
+use App\Models\StockAnalysisModel;
 
 class StockDetailController extends BaseController
 {
     public function detail($code)
     {
-        $stockDataModel = new StockDataModel();
         $emitenModel = new EmitenModel();
         $historyModel = new StockHistoryModel();
-        $analysisModel = new \App\Models\StockAnalysisModel(); // Tambahkan model analisis
+        $analysisModel = new StockAnalysisModel(); // Tambahkan model analisis
 
         // 1. Ambil data awal dari DB
         // CATATAN: ai_analysis dan last_ai_update sudah dihapus dari select karena pindah tabel
-        $stock = $stockDataModel->select('stock_data.*, emiten.code, emiten.name, emiten.sector, emiten.notation, emiten.description, emiten.image')
-            ->join('emiten', 'emiten.id = stock_data.emiten_id')
-            ->where('emiten.code', $code)
-            ->first();
+        $stock = $emitenModel->where('code', $code)->first();
 
         if (!$stock) {
             throw \CodeIgniter\Exceptions\PageNotFoundException::forPageNotFound();
         }
 
-        $symbol = $code . ".JK";
-        $apiKey = env('FMP_API_KEY');
-        $baseUrl = env('FMP_BASE_URL');
-        $client = \Config\Services::curlrequest();
         $now = time();
         $needsRefresh = false;
 
-        // --- LOGIKA 1: FUNDAMENTAL (FMP + SCRAPING IPOT) ---
+        // --- LOGIKA 1: Scrapping Data ---
         $lastFundamentalUpdate = strtotime($stock['fundamental_updated_at'] ?? '2000-01-01');
 
         if (($now - $lastFundamentalUpdate) > 86400) {
             try {
-                // A. Fetch FMP (Profile)
-                $fmpUrl = "{$baseUrl}/profile?symbol={$symbol}&apikey={$apiKey}";
-                $resFmp = $client->request('GET', $fmpUrl, ['verify' => false]);
-                $bodyFmp = json_decode($resFmp->getBody(), true);
-                $fmpData = $bodyFmp[0] ?? null;
+                // Scrape IDN (Profil, Harga, Market Cap, Dividen)
+                $profileData = $this->scrapeProfileGoogle($code);
+                // Scrape IPOT (History Fundamental)
+                $scrapedHistory = $this->scrapeFundamentalIPOT($code);
+                // Ambil Beta dari MarketWatch (Karena di IDN tidak ada)
+                $beta = $this->scrapeBetaFromMarketWatch($code);
 
-                // B. Fetch IndoPremier Scraping
-                $scrapedData = $this->scrapeFundamentalIPOT($code);
+                // // --- LOGGING HASIL SCRAPPING (CEK DI writable/logs/) ---
+                // log_message('info', "==== START SCRAPE LOG [{$code}] ====");
 
-                if ($fmpData && $scrapedData) {
+                // log_message('info', "IDNFinancials Profile Data: " . json_encode($profileData, JSON_PRETTY_PRINT));
+
+                // if ($scrapedHistory) {
+                //     log_message('info', "IPOT Current Data: " . json_encode($scrapedHistory['current'], JSON_PRETTY_PRINT));
+                //     log_message('info', "IPOT History Data: " . json_encode($scrapedHistory['history'], JSON_PRETTY_PRINT));
+                // } else {
+                //     log_message('error', "IPOT Scrape returned NULL for {$code}");
+                // }
+
+                // log_message('info', "MarketWatch Beta: " . ($beta ?? 'NULL'));
+
+                // log_message('info', "==== END SCRAPE LOG [{$code}] ====");
+
+                if ($scrapedHistory && $profileData) {
                     // Hitung Yield
-                    $divYield = ($fmpData['lastDividend'] ?? 0) > 0 && ($fmpData['price'] ?? 0) > 0
-                        ? ($fmpData['lastDividend'] / $fmpData['price']) * 100
-                        : 0;
+                    $divYield = ($profileData['last_dividend'] > 0 && $profileData['price'] > 0)
+                        ? ($profileData['last_dividend'] / $profileData['price']) * 100 : 0;
 
                     // Update Emiten (Statis)
-                    $emitenModel->update($stock['emiten_id'], [
-                        'description' => $fmpData['description'] ?? $stock['description'],
-                        'image' => $fmpData['image'] ?? $stock['image']
-                    ]);
-
-                    // Update Stock Data (Fundamental)
-                    $stockDataModel->update($stock['id'], [
-                        'market_cap' => $fmpData['marketCap'] ?? $stock['market_cap'],
-                        'beta' => $fmpData['beta'] ?? $stock['beta'],
+                    $emitenModel->update($stock['id'], [
+                        'description' => $profileData['description'] ?? $stock['description'],
+                        'last_price' => $profileData['price'],
+                        'market_cap' => $profileData['market_cap'],
+                        'dividend' => $profileData['last_dividend'],
                         'dividend_yield' => $divYield,
-                        'employees' => $fmpData['fullTimeEmployees'] ?? $stock['employees'],
-                        'pbv' => $scrapedData['current']['pbv'] ?? null,
-                        'per' => $scrapedData['current']['per'] ?? null,
-                        'roe' => $scrapedData['current']['roe'] ?? null,
-                        'der' => $scrapedData['current']['der'] ?? null,
-                        'dividend' => $fmpData['lastDividend'] ?? null,
+                        'beta' => $beta ?? $stock['beta'], // Update Beta jika ditemukan
+                        'pbv' => $scrapedHistory['current']['pbv'] ?? $stock['pbv'],
+                        'per' => $scrapedHistory['current']['per'] ?? $stock['per'],
+                        'roe' => $scrapedHistory['current']['roe'] ?? $stock['roe'],
+                        'der' => $scrapedHistory['current']['der'] ?? $stock['der'],
                         'fundamental_updated_at' => date('Y-m-d H:i:s')
                     ]);
 
                     // Update Sejarah Multi-Tahun
-                    if (isset($scrapedData['history']) && is_array($scrapedData['history'])) {
-                        foreach ($scrapedData['history'] as $year => $values) {
+                    if (isset($scrapedHistory['history']) && is_array($scrapedHistory['history'])) {
+                        foreach ($scrapedHistory['history'] as $year => $values) {
                             $historyData = [
-                                'emiten_id' => $stock['emiten_id'],
+                                'emiten_id' => $stock['id'],
                                 'year' => $year,
                                 'period' => 'FY',
                                 'revenue' => (string) ($values['revenue'] ?? '0'),
@@ -89,7 +89,7 @@ class StockDetailController extends BaseController
                             ];
 
                             $existing = $historyModel->where([
-                                'emiten_id' => $stock['emiten_id'],
+                                'emiten_id' => $stock['id'],
                                 'year' => $year,
                                 'period' => 'FY'
                             ])->first();
@@ -105,15 +105,12 @@ class StockDetailController extends BaseController
         }
 
         // 2. Refresh data jika fundamental baru saja di-update
-        if ($needsRefresh) {
-            $stock = $stockDataModel->select('stock_data.*, emiten.code, emiten.name, emiten.sector, emiten.notation, emiten.description, emiten.image')
-                ->join('emiten', 'emiten.id = stock_data.emiten_id')
-                ->where('emiten.code', $code)
-                ->first();
-        }
+        if ($needsRefresh)
+            $stock = $emitenModel->find($stock['id']);
+
 
         // 3. Ambil 5 riwayat tahunan terakhir
-        $histories = $historyModel->where('emiten_id', $stock['emiten_id'])
+        $histories = $historyModel->where('emiten_id', $stock['id'])
             ->orderBy('year', 'DESC')
             ->findAll(5);
 
@@ -201,6 +198,111 @@ class StockDetailController extends BaseController
 
         } catch (\Exception $e) {
             log_message('error', "IPOT Scrape Error [{$code}]: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function scrapeProfileGoogle($code)
+    {
+        $client = \Config\Services::curlrequest();
+        try {
+            // Gunakan URL Beta dengan bahasa Indonesia agar label regex cocok
+            $url = "https://www.google.com/finance/beta/quote/" . strtoupper($code) . ":IDX?hl=id";
+
+            $res = $client->request('GET', $url, [
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept-Language' => 'id-ID,id;q=0.9,en-US;q=0.8',
+                ],
+                'timeout' => 15,
+                'verify' => false
+            ]);
+
+            $html = $res->getBody();
+
+            // 1. Dapatkan teks bersih tanpa tag HTML agar lebih mudah di-regex
+            $cleanText = strip_tags($html);
+            // Ubah &nbsp; atau spasi aneh menjadi spasi biasa
+            $cleanText = html_entity_decode($cleanText);
+            $cleanText = preg_replace('/\s+/u', ' ', $cleanText);
+
+            $data = [
+                'description' => null,
+                'price' => 0,
+                'market_cap' => 0,
+                'last_dividend' => 0
+            ];
+
+            // 1. EKSTRAK DARI ds:3 (Paling Stabil)
+            // Berdasarkan log Anda: ds:3 berisi array panjang.
+            // Index [0][0][2] = Deskripsi
+            // Index [0][0][8] = Last Price (1325)
+            // Index [0][0][7] = Market Cap (55019962500000)
+            if (preg_match('/AF_initDataCallback\({key: \'ds:3\'.*?data:(.*?), sideChannel/s', $html, $matches)) {
+                $jsonData = json_decode($matches[1], true);
+                $root = $jsonData[0][0] ?? null;
+
+                if ($root) {
+                    $data['description'] = $root[2] ?? null;
+                    $data['price'] = (float) ($root[8] ?? 0);
+                    $data['market_cap'] = (float) ($root[7] ?? 0);
+                }
+            }
+
+            // 2. EKSTRAK DIVIDEN (Rupiah Direct dari HTML)
+            // Karena nominal "Rp9" seringkali tidak masuk ke array utama ds:3, 
+            // kita gunakan regex teks mentah dengan spasi fleksibel.
+            if (preg_match('/Dividen per kuartal<\/div><div[^>]*>Rp\s?([\d\.,]+)<\/div>/u', $html, $divMatches)) {
+                $cleanDiv = str_replace(['.', ','], ['', '.'], $divMatches[1]);
+                $data['last_dividend'] = (float) $cleanDiv;
+            }
+
+            // 3. CLEANING DESCRIPTION (Jika ada link Wikipedia atau spasi aneh)
+            if ($data['description']) {
+                $data['description'] = html_entity_decode($data['description']);
+                $data['description'] = strip_tags($data['description']);
+                $data['description'] = preg_replace('/\s+/u', ' ', $data['description']);
+                $data['description'] = trim($data['description']);
+            }
+
+            return $data;
+
+        } catch (\Exception $e) {
+            log_message('error', "Google Beta Scrape Error [{$code}]: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    private function scrapeBetaFromMarketWatch($code)
+    {
+        $client = \Config\Services::curlrequest();
+        try {
+            // MarketWatch menggunakan suffix khusus untuk bursa Indonesia
+            $url = "https://www.marketwatch.com/investing/stock/" . strtolower($code) . "?countrycode=id";
+
+            $res = $client->request('GET', $url, [
+                'headers' => [
+                    'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                    'Accept' => 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                    'Referer' => 'https://www.google.com/', // Pura-pura dari Google search
+                    'Accept-Language' => 'en-US,en;q=0.9',
+                ],
+                'timeout' => 20,
+                'verify' => false
+            ]);
+
+            $html = $res->getBody();
+
+            // Cari label "Beta" lalu ambil nilai di tag <span> setelahnya
+            // Struktur: <small class="label">Beta</small> <span class="primary ">0.87</span>
+            if (preg_match('/<small class="label">Beta<\/small>\s*<span class="primary\s*">(.*?)<\/span>/s', $html, $matches)) {
+                $betaValue = trim($matches[1]);
+                return is_numeric($betaValue) ? (float) $betaValue : null;
+            }
+
+            return null;
+        } catch (\Exception $e) {
+            log_message('error', "MarketWatch Beta Scrape Error [{$code}]: " . $e->getMessage());
             return null;
         }
     }

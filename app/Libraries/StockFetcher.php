@@ -3,19 +3,16 @@
 namespace App\Libraries;
 
 use App\Models\EmitenModel;
-use App\Models\StockDataModel;
 use Config\Services;
 
 class StockFetcher
 {
     protected $emitenModel;
-    protected $stockDataModel;
     protected $client;
 
     public function __construct()
     {
         $this->emitenModel = new EmitenModel();
-        $this->stockDataModel = new StockDataModel();
         $this->client = Services::curlrequest();
     }
 
@@ -48,17 +45,14 @@ class StockFetcher
 
     public function fetchStepByStep(int $limit = 50)
     {
-        // LOGIKA BARU: Jika market tutup, langsung berhenti.
-        if (!$this->isMarketOpen()) {
-            return "Market sedang tutup (Libur/Luar Jam Kerja). Fetching dibatalkan.";
-        }
-
         set_time_limit(0);
+        date_default_timezone_set('Asia/Jakarta');
+
+        $isOpen = $this->isMarketOpen();
+        $today = date('Y-m-d');
 
         // 1. Ambil antrian data
-        $queue = $this->stockDataModel
-            ->select('stock_data.*, emiten.code')
-            ->join('emiten', 'emiten.id = stock_data.emiten_id')
+        $queue = $this->emitenModel
             ->orderBy('price_updated_at', 'ASC')
             ->limit($limit)
             ->findAll();
@@ -68,77 +62,68 @@ class StockFetcher
 
         $successCount = 0;
         $failCount = 0;
-        $today = date('Y-m-d');
-        $userAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+
+        $headers = [
+            'User-Agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+            'Referer' => 'https://finance.yahoo.com/',
+        ];
 
         foreach ($queue as $item) {
-            // DOUBLE CHECK: Cek lagi di tengah loop (opsional)
-            // Berguna jika limit sangat besar sehingga loop memakan waktu berjam-jam
-            if (!$this->isMarketOpen())
-                break;
+            /**
+             * LOGIKA PRIORITAS:
+             * 1. Jika market sedang BUKA (09:00 - 16:00), maka hajar terus fetching-nya (real-time update).
+             * 2. Jika market TUTUP, cek: Apakah data terakhir di-update BUKAN hari ini (atau NULL)?
+             * - Jika ya (data basi), maka tetap fetch (untuk melengkapi data hari itu).
+             * - Jika tidak (sudah update hari ini & market tutup), maka stop/skip.
+             */
+            $lastUpdateDate = $item['price_updated_at'] ? date('Y-m-d', strtotime($item['price_updated_at'])) : null;
+
+            if (!$isOpen && $lastUpdateDate === $today) {
+                // Market tutup DAN data sudah fresh hari ini, tidak perlu fetch lagi emiten ini.
+                continue;
+            }
 
             $symbol = ($item['code'] === 'IHSG') ? '^JKSE' : strtoupper($item['code']) . ".JK";
-            $end = time();
-            $start = strtotime('-7 days', $end);
-
-            $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?period1={$start}&period2={$end}&interval=1d";
+            $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?range=1d&interval=1m";
 
             try {
                 $response = $this->client->request('GET', $url, [
-                    'headers' => [
-                        'User-Agent' => $userAgent,
-                        'Accept' => 'application/json',
-                    ],
+                    'headers' => $headers,
                     'verify' => false,
-                    'timeout' => 10
+                    'timeout' => 5
                 ]);
 
                 $body = json_decode($response->getBody(), true);
                 $result = $body['chart']['result'][0] ?? null;
 
-                if ($result && isset($result['timestamp'])) {
+                if ($result) {
                     $meta = $result['meta'];
-                    $timestamps = $result['timestamp'];
-                    $closePrices = $result['indicators']['quote'][0]['close'] ?? [];
+                    $lastPrice = (float) ($meta['regularMarketPrice'] ?? 0);
 
-                    $cleanPrices = array_values(array_filter($closePrices, fn($p) => $p !== null));
-                    $count = count($cleanPrices);
-
-                    if ($count > 0) {
-                        $lastPrice = (float) $cleanPrices[$count - 1];
-                        $lastDataDate = date('Y-m-d', end($timestamps));
-
-                        // Logika Prev Close saat Market Buka vs Tutup
-                        if ($lastDataDate !== $today) {
-                            $truePrevClose = $lastPrice;
-                        } else {
-                            $truePrevClose = $count > 1 ? (float) $cleanPrices[$count - 2] : (float) ($meta['chartPreviousClose'] ?? $lastPrice);
-                        }
-
-                        $this->stockDataModel->update($item['id'], [
+                    if ($lastPrice > 0) {
+                        $this->emitenModel->update($item['id'], [
                             'last_price' => $lastPrice,
-                            'previous_close' => $truePrevClose,
-                            'day_high' => $meta['regularMarketDayHigh'] ?? $lastPrice,
-                            'day_low' => $meta['regularMarketDayLow'] ?? $lastPrice,
+                            'previous_close' => (float) ($meta['chartPreviousClose'] ?? $lastPrice),
+                            'day_high' => (float) ($meta['regularMarketDayHigh'] ?? $lastPrice),
+                            'day_low' => (float) ($meta['regularMarketDayLow'] ?? $lastPrice),
                             'price_updated_at' => date('Y-m-d H:i:s')
                         ]);
                         $successCount++;
-                    } else {
-                        throw new \Exception("Data harga kosong");
                     }
-                } else {
-                    $this->stockDataModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
-                    $failCount++;
                 }
 
-                usleep(rand(1000000, 2000000));
+                // Jeda milidetik (Ryzen 5500 Friendly)
+                usleep(rand(300000, 600000));
 
             } catch (\Exception $e) {
-                $this->stockDataModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
+                // Update timestamp agar tidak nyangkut di antrian pertama terus jika error
+                $this->emitenModel->update($item['id'], ['price_updated_at' => date('Y-m-d H:i:s')]);
                 $failCount++;
+                if (str_contains($e->getMessage(), '429'))
+                    sleep(5);
             }
         }
 
-        return "Sync: {$successCount} OK, {$failCount} Fail. Market Open: " . ($this->isMarketOpen() ? 'YES' : 'NO');
+        return "Sync Selesai: {$successCount} OK, {$failCount} Fail. Mode: " . ($isOpen ? 'Real-time' : 'Catch-up (Market Closed)');
     }
 }

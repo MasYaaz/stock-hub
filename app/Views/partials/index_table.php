@@ -104,13 +104,10 @@
                         <td class="pl-6 py-5">
                             <div class="flex items-center gap-4">
                                 <div
-                                    class="w-10 h-10 shrink-0 bg-white rounded-xl p-1.5 shadow-lg shadow-black/40 flex items-center justify-center">
-                                    <?php if (!empty($s['image'])): ?>
-                                        <img src="<?= $s['image'] ?>" class="max-w-full max-h-full object-contain"
-                                            loading="lazy">
-                                    <?php else: ?>
-                                        <i data-lucide="building-2" class="text-slate-300 w-5 h-5"></i>
-                                    <?php endif; ?>
+                                    class="w-10 h-10 shrink-0 flex items-center justify-center rounded-xl overflow-hidden shadow-lg shadow-black/40 border border-white/5 bg-slate-800">
+                                    <img src="https://financialmodelingprep.com/image-stock/<?= $s['code'] ?>.JK.png"
+                                        class="max-w-full max-h-full object-contain" alt="<?= $s['code'] ?>" loading="lazy"
+                                        onerror="handleMissingLogo(this, '<?= $s['code'] ?>')">
                                 </div>
                                 <div class="flex flex-col">
                                     <div class="flex items-center gap-2">
@@ -228,5 +225,22 @@
                 }
             }
         });
+    }
+    /**
+     * Fungsi untuk menangani logo yang tidak ditemukan (404)
+     * Mengganti image dengan inisial emiten menggunakan UI-Avatars
+     */
+    function handleMissingLogo(img, code) {
+        // Mencegah looping terus menerus jika UI-Avatars juga gagal (jarang terjadi)
+        img.onerror = null;
+
+        // Menggunakan UI-Avatars dengan style yang matching dengan dashboard kamu (Sky Blue)
+        // background: 0ea5e9 (Sky 500), color: fff (Putih), bold: true
+        const fallbackUrl = `https://ui-avatars.com/api/?name=${code}&background=0ea5e9&color=fff&font-size=0.4&bold=true`;
+
+        img.src = fallbackUrl;
+
+        // Opsional: Beri style tambahan pada parent agar terlihat lebih rapi sebagai "initial icon"
+        img.parentElement.classList.add('bg-slate-800');
     }
 </script>

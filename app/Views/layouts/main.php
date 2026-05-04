@@ -52,8 +52,9 @@
                             <a href="<?= base_url('stock/token') ?>"
                                 class="flex items-center gap-2 bg-linear-to-r from-sky-500/10 to-blue-500/10 border border-sky-500/20 text-sky-400 px-4 py-2 rounded-full text-xs font-bold hover:border-sky-500/40 transition-all shadow-sm group">
                                 <i data-lucide="coins" class="w-3.5 h-3.5 group-hover:rotate-12 transition-transform"></i>
-                                <span><?= number_format(session()->get('token_balance') ?? 0, 0, ',', '.') ?> <span
-                                        class="hidden lg:inline text-[10px] opacity-70">TOKEN</span></span>
+                                <span
+                                    id="nav-token-balance"><?= number_format(session()->get('token_balance') ?? 0, 0, ',', '.') ?>
+                                    <span class="hidden lg:inline text-[10px] opacity-70">TOKEN</span></span>
                             </a>
                         </li>
 

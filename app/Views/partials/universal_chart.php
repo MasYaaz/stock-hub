@@ -36,9 +36,9 @@
 </div>
 
 <div
-    class="relative bg-linear-to-br from-slate-800/40 to-slate-950/60 backdrop-blur-xl border border-white/10 rounded-[32px] p-8 shadow-2xl group">
+    class="relative bg-linear-to-br from-slate-800/40 to-slate-950/60 backdrop-blur-xl border border-white/10 rounded-4xl p-8 shadow-2xl group">
     <div id="chartLoader"
-        class="absolute inset-0 bg-slate-900/70 backdrop-blur-md hidden items-center justify-center z-20 rounded-[32px] transition-all">
+        class="absolute inset-0 bg-slate-900/70 backdrop-blur-md hidden items-center justify-center z-20 rounded-4xl transition-all">
         <div class="flex flex-col items-center gap-3">
             <div class="w-10 h-10 border-4 border-sky-400/20 border-t-sky-400 rounded-full animate-spin"></div>
             <span class="text-[10px] font-black text-sky-400 uppercase tracking-widest">Fetching Data</span>

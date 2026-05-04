@@ -2,7 +2,7 @@
 
 namespace App\Controllers;
 
-use App\Models\StockDataModel;
+use App\Models\EmitenModel;
 use App\Models\StockHistoryModel;
 use App\Models\StockAnalysisModel; // Tambahkan ini
 use App\Models\UserModel;          // Tambahkan ini
@@ -19,7 +19,7 @@ class AIAnalysisController extends BaseController
 
         $analysisModel = new StockAnalysisModel();
         $userModel = new UserModel();
-        $stockDataModel = new StockDataModel();
+        $emitenModel = new EmitenModel();
         $historyModel = new StockHistoryModel();
         $client = \Config\Services::curlrequest();
 
@@ -43,10 +43,7 @@ class AIAnalysisController extends BaseController
         }
 
         // 4. Ambil Data Konteks (Fundamental & Teknikal)
-        $stock = $stockDataModel->select('stock_data.*, emiten.id as emiten_id, emiten.name, emiten.sector, emiten.description')
-            ->join('emiten', 'emiten.id = stock_data.emiten_id')
-            ->where('emiten.code', $code)
-            ->first();
+        $stock = $emitenModel->where('code', $code)->first();
 
         if (!$stock)
             return $this->response->setStatusCode(404)->setJSON(['status' => 'error', 'message' => 'Emiten tidak ditemukan']);
@@ -85,7 +82,7 @@ class AIAnalysisController extends BaseController
         }
 
         // 3. Ambil data history fundamental
-        $histories = $historyModel->getTrendByEmiten($stock['emiten_id'], 4);
+        $histories = $historyModel->getTrendByEmiten($stock['id'], 4);
 
         // 4. KONSTRUKSI PROMPT HYBRID (Struktur Lebih Rapi)
         $prompt = "Kamu adalah analis investasi profesional yang ramah. Berikan analisis saham {$code} yang mudah dipahami orang awam.\n\n";
@@ -171,6 +168,9 @@ class AIAnalysisController extends BaseController
             if ($db->transStatus() === false) {
                 return $this->response->setStatusCode(500)->setJSON(['status' => 'error', 'message' => 'Gagal memproses transaksi token.']);
             }
+
+            // Update session agar navbar otomatis berubah saat halaman di-refresh
+            session()->set('token_balance', $updatedUser->token_balance);
 
             return $this->response->setJSON([
                 'status' => 'success',
