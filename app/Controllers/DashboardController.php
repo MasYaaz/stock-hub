@@ -13,10 +13,14 @@ class DashboardController extends BaseController
             $this->initializeAllStocks();
         }
 
+        // Ambil rekomendasi cerdas (Logika yang menggabungkan history 5 tahun)
+        $recommendations = $emitenModel->getSmartRecommendations();
+
         $data = [
             'title' => 'Dashboard BedahSaham',
             'stocks' => $emitenModel->getStockSummary(),
-            'total' => $emitenModel->countAllResults()
+            'total' => $emitenModel->countAllResults(),
+            'best_picks' => $recommendations
         ];
         return view('stock_index', $data);
     }
