@@ -1,5 +1,7 @@
 # Bedah Saham - Aplikasi Analisis Saham Indonesia
 
+![Tampilan Utama](public/assets/home.webp)
+
 Bedah Saham adalah aplikasi web modern untuk analisis saham Indonesia yang memanfaatkan teknologi AI dan data real-time dari API keuangan internasional. Aplikasi ini memungkinkan pengguna untuk menganalisis, memantau, dan memahami pergerakan saham dengan lebih mendalam.
 
 ## 📋 Daftar Isi
@@ -8,8 +10,8 @@ Bedah Saham adalah aplikasi web modern untuk analisis saham Indonesia yang meman
 - [Tech Stack](#-tech-stack)
 - [Prasyarat](#-prasyarat)
 - [Instalasi](#-instalasi)
-- [Konfigurasi](#-konfigurasi)
-- [Database](#-database)
+- [Konfigurasi](#%EF%B8%8F-konfigurasi)
+- [Database](#%EF%B8%8F-database)
 - [Menjalankan Aplikasi](#-menjalankan-aplikasi)
 - [Struktur Project](#-struktur-project)
 - [Integrasi API](#-integrasi-api)
